@@ -133,6 +133,17 @@ uv run python manage.py rebuild_fraud_profiles       # rebuild Redis profiles fr
 Thresholds come from validation data: *review* maximises F2 (recall-weighted) and *block* is the
 lowest score with at least 97% precision. Metrics are reported on an untouched, out-of-time test split.
 
+### Resetting a dev database
+
+Migrations were regenerated from scratch (the project is pre-production). An existing
+dev database must be recreated:
+
+```bash
+docker compose exec postgres psql -U postgres -c "DROP DATABASE bank WITH (FORCE)" -c "CREATE DATABASE bank"
+uv run python manage.py migrate
+uv run python manage.py train_fraud_model --inline   # re-registers a model
+```
+
 ## Running Tests
 
 ```bash
@@ -180,7 +191,7 @@ production, review:
 - Redis and cache configuration
 - email provider configuration
 - `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`
-- static/media handling and Whitenoise configuration
+- static/media serving (e.g. WhiteNoise or a CDN) — not configured yet
 
 ## License
 
