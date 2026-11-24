@@ -12,9 +12,6 @@ for customers to:
 - send money to other users
 - view dashboard summaries and recent transactions
 - receive notifications and alerts
-- review fraud-risk signals for transfers
-
-The project also includes a machine learning fraud model and real-time updates using Django Channels and Redis.
 
 ## Tech Stack
 
@@ -34,11 +31,11 @@ The project also includes a machine learning fraud model and real-time updates u
 - Profile management with next-of-kin data
 - Dashboard with account overview and transaction summaries
 - Deposit, withdrawal, and transfer services
-- Fraud detection screening before transfers are processed
+- Real-time fraud screening of every deposit, withdrawal and transfer, with a staff review queue
 - Real-time notification center with read/unread tracking
 - Admin-friendly project configuration via Django admin and Baton
 - Email-based authentication and password reset support
-- Docker-based local PostgreSQL and Mailpit setup
+- Docker Compose stack: PostgreSQL, Redis, Kafka, Kafka UI and Mailpit
 
 ## Architecture
 
@@ -133,17 +130,6 @@ uv run python manage.py rebuild_fraud_profiles       # rebuild Redis profiles fr
 Thresholds come from validation data: *review* maximises F2 (recall-weighted) and *block* is the
 lowest score with at least 97% precision. Metrics are reported on an untouched, out-of-time test split.
 
-### Resetting a dev database
-
-Migrations were regenerated from scratch (the project is pre-production). An existing
-dev database must be recreated:
-
-```bash
-docker compose exec postgres psql -U postgres -c "DROP DATABASE bank WITH (FORCE)" -c "CREATE DATABASE bank"
-uv run python manage.py migrate
-uv run python manage.py train_fraud_model --inline   # re-registers a model
-```
-
 ## Running Tests
 
 ```bash
@@ -167,7 +153,7 @@ Collect static files for production:
 uv run python manage.py collectstatic --noinput
 ```
 
-Check project URLs and routes:
+Run Django's system checks:
 
 ```bash
 uv run python manage.py check
@@ -191,7 +177,7 @@ production, review:
 - Redis and cache configuration
 - email provider configuration
 - `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`
-- static/media serving (e.g. WhiteNoise or a CDN) — not configured yet
+- static and media file serving
 
 ## License
 
