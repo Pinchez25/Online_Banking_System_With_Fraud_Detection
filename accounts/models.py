@@ -6,8 +6,6 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from accounts.validators import validate_card_number
-
 USER_TYPES = (
     ("individual", "Individual"),
     ("business", "Business"),
@@ -24,21 +22,17 @@ ACCOUNT_TYPES = (
 
 
 class Account(AbstractUser):
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Application under review")
+        ACTIVE = "active", _("Active")
+        REJECTED = "rejected", _("Application rejected")
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account_type = models.CharField(
         _("Type of Account"),
         max_length=50,
         choices=ACCOUNT_TYPES,
         default="savings",
-    )
-    cc_number = models.CharField(
-        _("Credit Card"),
-        max_length=19,
-        help_text=_("Customer credit card number (digits only)"),
-        validators=[validate_card_number],
-        unique=True,  # identifies the recipient of a transfer
-        null=True,
-        blank=True,
     )
     user_type = models.CharField(
         _("User Type"),
@@ -62,6 +56,10 @@ class Account(AbstractUser):
         decimal_places=2,
         default=0,
     )
+    status = models.CharField(_("Status"), max_length=10, choices=Status.choices, default=Status.PENDING)
+    account_number = models.CharField(_("Account number"), max_length=12, unique=True, null=True, blank=True,
+                                      editable=False)
+    opened_at = models.DateTimeField(_("Opened"), null=True, blank=True, editable=False)
     is_blocked = models.BooleanField(_("Blocked"), default=False)
     session_key = models.CharField(max_length=40, blank=True, default="", editable=False,
                                    help_text=_("The only session allowed to stay signed in."))
@@ -81,6 +79,10 @@ class Account(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    @property
+    def can_transact(self) -> bool:
+        return self.status == self.Status.ACTIVE and not self.is_blocked
 
     def can_approve_transactions(self):
         return (

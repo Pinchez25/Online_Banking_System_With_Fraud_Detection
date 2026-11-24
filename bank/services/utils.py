@@ -1,11 +1,5 @@
 import secrets
 
-TRANSACTION_TYPES = (
-    ("D", "Deposit"),
-    ("W", "Withdrawal"),
-    ("T", "Transfer"),
-)
-
 # Crockford-style Base32 alphabet: excludes ambiguous characters such as 0/O and 1/I.
 TRANSACTION_REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 TRANSACTION_REFERENCE_LENGTH = 10

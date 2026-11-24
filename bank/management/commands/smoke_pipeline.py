@@ -13,6 +13,7 @@ from django.db import transaction
 
 from accounts.models import Account
 from bank.models import Transaction
+from bank.services.onboarding import approve_application
 from bank.services.transactions import request_transaction
 from fraud.models import RiskAssessment
 
@@ -37,7 +38,7 @@ class Command(BaseCommand):
                 password=uuid.uuid4().hex, bank_balances=Decimal(balance),
             )
             accounts.append(created)
-            return created
+            return approve_application(created)
 
         try:
             alice, bob = account("alice", "50000"), account("bob", "20000")

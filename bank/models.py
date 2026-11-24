@@ -5,14 +5,14 @@ from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
-from bank.services.utils import (
-    TRANSACTION_REFERENCE_LENGTH,
-    TRANSACTION_TYPES,
-    generate_transaction_id,
-)
+from accounts.validators import validate_card_number
+from bank.ledger import TransactionType
+from bank.services.utils import TRANSACTION_REFERENCE_LENGTH, generate_transaction_id
 
 
 class Transaction(models.Model):
+    Type = TransactionType
+
     class Status(models.TextChoices):
         SCREENING = "screening", _("Fraud screening")
         PENDING = "pending", _("Pending approval")
@@ -50,7 +50,7 @@ class Transaction(models.Model):
     type = models.CharField(
         _("Type of Transaction"),
         max_length=1,
-        choices=TRANSACTION_TYPES,
+        choices=TransactionType.choices,
     )
     amount = models.DecimalField(
         _("Amount"),
@@ -166,3 +166,51 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()}: {self.title}"
+
+
+class Card(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", _("Active")
+        FROZEN = "frozen", _("Frozen")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    account = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cards")
+    number = models.CharField(max_length=19, unique=True, validators=[validate_card_number], editable=False)
+    expiry_month = models.PositiveSmallIntegerField()
+    expiry_year = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    issued_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-issued_at"]
+        indexes = [models.Index(fields=["account", "status"], name="card_account_status_idx")]
+
+    def __str__(self):
+        return self.masked_number
+
+    @property
+    def masked_number(self) -> str:
+        return f"•••• •••• •••• {self.number[-4:]}"
+
+    @property
+    def expiry(self) -> str:
+        return f"{self.expiry_month:02d}/{self.expiry_year % 100:02d}"
+
+
+class Beneficiary(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="beneficiaries")
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    nickname = models.CharField(_("Nickname"), max_length=60)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = _("beneficiaries")
+        ordering = [models.F("last_used_at").desc(nulls_last=True), "nickname"]
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "recipient"], name="beneficiary_unique_per_owner"),
+            models.CheckConstraint(condition=~Q(owner=models.F("recipient")), name="beneficiary_not_self"),
+        ]
+
+    def __str__(self):
+        return self.nickname

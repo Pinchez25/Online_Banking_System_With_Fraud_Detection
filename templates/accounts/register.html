@@ -35,7 +35,8 @@
 
         <label class="field" for="id_national_id">
             <span>National ID number</span>
-            <input type="text" name="national_id" id="id_national_id" placeholder="e.g. 30021147" required>
+            <input type="text" name="national_id" id="id_national_id" value="{{ form.national_id.value|default:'' }}" placeholder="e.g. 30021147" inputmode="numeric" required>
+            {% if form.national_id.errors %}<span class="field__error">{{ form.national_id.errors|join:" " }}</span>{% endif %}
         </label>
 
         <label class="field" for="id_username">

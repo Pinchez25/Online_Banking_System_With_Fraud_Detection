@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'bank.apps.BankConfig',
     'accounts.apps.AccountsConfig',
     'fraud.apps.FraudConfig',
+    'loans.apps.LoansConfig',
 ]
 
 
@@ -98,6 +99,16 @@ TRANSACTION_LIMITS = {
     "W": (10, 1_000_000),
     "T": (10, 1_000_000),
 }
+
+LOANS = {
+    "ANNUAL_RATE": "0.14",
+    "TERMS_MONTHS": (3, 6, 12, 24, 36),
+    "MIN_AMOUNT": 1_000,
+    "MAX_AMOUNT": 500_000,
+}
+
+TRANSACTIONS_PER_PAGE = 25
+EXPORT_PDF_MAX_ROWS = 5_000
 
 WSGI_APPLICATION = "Online_Banking_System.wsgi.application"
 ASGI_APPLICATION = "Online_Banking_System.asgi.application"

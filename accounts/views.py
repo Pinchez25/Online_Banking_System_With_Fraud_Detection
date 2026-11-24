@@ -40,13 +40,14 @@ class AccountRegisterView(CreateView):
     model = Account
     form_class = AccountRegistrationForm
     template_name = "accounts/register.html"
-    success_url = reverse_lazy("accounts:profile-detail")
+    success_url = reverse_lazy("bank:dashboard")
 
     def form_valid(self, form):
         response = super().form_valid(form)
         login(self.request, self.object)
-        logger.info("New account registered: %s", self.object.pk)
-        messages.success(self.request, f"Welcome, {self.object.email} — your account is ready.")
+        logger.info("Account application received: %s", self.object.pk)
+        messages.success(self.request, "Application received. We'll verify your details and open your account; "
+                                       "you'll be notified here once it's ready.")
         return response
 
 
