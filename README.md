@@ -95,6 +95,7 @@ Save the CSV as `ml/data/paysim.csv`. PaySim types map onto the bank's: `CASH_IN
 
 ```bash
 uv sync
+uv run pre-commit install            # ruff, hygiene, lockfile and migration checks on every commit
 cp .env.example .env
 docker compose up -d                 # Postgres, Redis (:6380), Kafka KRaft (:9094), Kafka UI (:8089), Mailpit
 uv run python manage.py migrate
