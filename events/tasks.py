@@ -3,7 +3,7 @@ from datetime import timedelta
 from celery import shared_task
 from django.utils import timezone
 
-from events import outbox
+from events import relay
 from events.bus import PublishError
 from events.models import OutboxEvent
 
@@ -17,12 +17,12 @@ def relay_outbox(self) -> int:
     our events committed (the beat sweep is the final safety net)."""
     total = 0
     try:
-        while sent := outbox.relay_pending(RELAY_BATCH):
+        while sent := relay.relay_pending(RELAY_BATCH):
             total += sent
         if sent is None and total == 0:
             raise self.retry(countdown=0.5)
     except PublishError as error:
-        outbox.record_failure(error, RELAY_BATCH)
+        relay.record_failure(error, RELAY_BATCH)
         raise
     return total
 
