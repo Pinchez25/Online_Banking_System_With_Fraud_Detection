@@ -32,8 +32,8 @@ class _ConstantModel:
 class RequestTransactionTests(TestCase):
     def setUp(self):
         ProfileStore().flush()
-        self.sender = make_account(balance="1000.00", cc_number="4242424242424242")
-        self.recipient = make_account(balance="50.00", cc_number="4111111111111111")
+        self.sender = make_account(balance="1000.00")
+        self.recipient = make_account(balance="50.00")
 
     def test_request_persists_screening_transaction_and_outbox_event_atomically(self):
         txn = request_transaction(account=self.sender, txn_type="T", amount="25", recipient=self.recipient)

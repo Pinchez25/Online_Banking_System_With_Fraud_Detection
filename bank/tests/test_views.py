@@ -39,10 +39,7 @@ class TestBankViews(TestCase):
         self.assertIn('cards', response.context)
 
     def test_deposit_creates_screening_transaction(self):
-        account = get_user_model().objects.create_user(
-            username='depositor', password='password123', email='depositor@example.com', national_id=10003,
-            bank_balances=100,
-        )
+        account = make_account(balance="100")
         self.client.force_login(account)
 
         response = self.client.post(reverse('bank:deposit-money'), {'type': 'D', 'amount': '25.00'})
@@ -54,10 +51,7 @@ class TestBankViews(TestCase):
         self.assertEqual(transaction.status, Transaction.Status.SCREENING)
 
     def test_withdrawal_creates_screening_transaction(self):
-        account = get_user_model().objects.create_user(
-            username='withdrawer', password='password123', email='withdrawer@example.com', national_id=10004,
-            bank_balances=100,
-        )
+        account = make_account(balance="100")
         self.client.force_login(account)
 
         response = self.client.post(reverse('bank:withdraw-money'), {'type': 'W', 'amount': '25.00'})
@@ -69,24 +63,25 @@ class TestBankViews(TestCase):
         self.assertEqual(transaction.status, Transaction.Status.SCREENING)
 
     def test_transfer_is_screened_then_awaits_approval(self):
-        sender = make_account(balance="100", cc_number="4242424242424242")
-        recipient = make_account(balance="50", cc_number="4111111111111111")
+        sender = make_account(balance="100")
+        recipient = make_account(balance="50")
         self.client.force_login(sender)
 
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(reverse("bank:send-money"), {"amount": "25.00", "recipient": "4111 1111 1111 1111"})
+            response = self.client.post(reverse("bank:send-money"),
+                                        {"amount": "25.00", "recipient": recipient.account_number})
 
         self.assertRedirects(response, reverse("bank:dashboard"))
         transaction = Transaction.objects.get(account=sender, recipient=recipient, type="T")
         self.assertEqual(transaction.status, Transaction.Status.PENDING)
         self.assertTrue(hasattr(transaction, "risk_assessment"))
 
-    def test_unknown_recipient_card_is_a_form_error(self):
+    def test_unknown_recipient_account_is_a_form_error(self):
         sender = make_account(balance="100")
         self.client.force_login(sender)
-        response = self.client.post(reverse("bank:send-money"), {"amount": "25.00", "recipient": "4000000000000002"})
+        response = self.client.post(reverse("bank:send-money"), {"amount": "25.00", "recipient": "019999999999"})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "No account uses this card number.")
+        self.assertContains(response, "No open account has this account number.")
         self.assertFalse(Transaction.objects.exists())
 
     def test_blocked_account_is_logged_out_on_next_request(self):
@@ -101,7 +96,7 @@ class TestBankViews(TestCase):
         Transaction.objects.create(account=sender, recipient=recipient, type="T", amount=10,
                                    status=Transaction.Status.APPROVED)
         self.client.force_login(recipient)
-        with self.assertNumQueries(9):
+        with self.assertNumQueries(14):  # one per panel, no N+1; 3 of them save the session
             response = self.client.get(reverse("bank:dashboard"))
         [row] = response.context["transactions"]
         self.assertEqual(row.direction, "credit")
