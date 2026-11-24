@@ -2,7 +2,7 @@
     <div class="panel__head">
         <div>
             <h2>Transaction history</h2>
-            <p class="panel__subtitle">{{ transactions|length }} transactions in the last 90 days</p>
+            <p class="panel__subtitle">Your {{ transactions|length }} most recent transactions</p>
         </div>
         <div class="panel__tools">
             <label class="search" for="txnSearch">
@@ -33,11 +33,11 @@
                     <td>{{ txn.date }}</td>
                     <td>{{ txn.description }}</td>
                     <td class="table__mono">{{ txn.reference }}</td>
-                    <td><span class="pill pill--{{ txn.type }}">{{ txn.type|title }}</span></td>
+                    <td><span class="pill pill--{{ txn.type|lower }}">{{ txn.type }}</span></td>
                     <td class="table__num {% if txn.direction == 'credit' %}is-credit{% else %}is-debit{% endif %}">
                         {% if txn.direction == 'credit' %}+{% else %}-{% endif %}{{ txn.amount }}
                     </td>
-                    <td><span class="pill pill--{{ txn.status }}">{{ txn.status|title }}</span></td>
+                    <td><span class="pill pill--{{ txn.status }}">{{ txn.status|capfirst }}</span></td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="6" class="table__empty">No transactions yet.</td></tr>

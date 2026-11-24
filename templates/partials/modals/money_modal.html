@@ -31,9 +31,9 @@ kind is one of: send, deposit, withdraw
             </label>
 
             {% if kind == "send" %}
-                <p class="field__hint">Transfers are screened for fraud before approval or processing.</p>
+                <p class="field__hint">Every request is screened for fraud in real time, then sent for bank approval.</p>
             {% else %}
-                <p class="field__hint">This request is submitted for bank approval before any balance change is applied.</p>
+                <p class="field__hint">Every request is screened for fraud in real time, then sent for bank approval.</p>
             {% endif %}
 
             <div class="modal__actions">

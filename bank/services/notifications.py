@@ -2,20 +2,38 @@ import logging
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.db.models import Count, Q
 
 from bank.models import Notification
 
 logger = logging.getLogger(__name__)
 
+SNAPSHOT_SIZE = 5
 
-def create_alert(*, recipient, title, body, level=Notification.Level.INFO):
+
+def create_alert(*, recipient_id, title, body, level=Notification.Level.INFO):
     return Notification.objects.create(
-        recipient=recipient,
+        recipient_id=recipient_id,
         kind=Notification.Kind.ALERT,
         level=level,
         title=title,
         body=body,
     )
+
+
+def unread(user_id):
+    return Notification.objects.filter(recipient_id=user_id, read_at__isnull=True)
+
+
+def unread_counts(user_id) -> dict[str, int]:
+    """Unread count per kind in a single aggregate query."""
+    return unread(user_id).aggregate(
+        **{kind: Count("pk", filter=Q(kind=kind)) for kind in Notification.Kind.values}
+    )
+
+
+def latest_unread(user_id, kind, limit=SNAPSHOT_SIZE):
+    return unread(user_id).filter(kind=kind)[:limit]
 
 
 def serialize_notification(notification):
@@ -31,51 +49,32 @@ def serialize_notification(notification):
 
 
 def notification_snapshot(user_id):
-    notifications = Notification.objects.filter(
-        recipient_id=user_id,
-        read_at__isnull=True,
-    )
-    items = {kind: [] for kind in Notification.Kind.values}
-    counts = {}
-    for kind in Notification.Kind.values:
-        counts[kind] = notifications.filter(kind=kind).count()
-        items[kind] = [
-            serialize_notification(notification)
-            for notification in notifications.filter(kind=kind)[:5]
-        ]
-    return {"type": "notifications.snapshot", "counts": counts, "items": items}
+    return {
+        "type": "notifications.snapshot",
+        "counts": unread_counts(user_id),
+        "items": {
+            kind: [serialize_notification(n) for n in latest_unread(user_id, kind)]
+            for kind in Notification.Kind.values
+        },
+    }
+
+
+def _group_send(user_id, message):
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer is not None:
+            async_to_sync(channel_layer.group_send)(f"notifications_{user_id}", message)
+    except Exception:
+        logger.exception("Unable to push %s to account %s over WebSocket", message["type"], user_id)
 
 
 def publish_notification(notification):
-    try:
-        channel_layer = get_channel_layer()
-        if channel_layer is None:
-            return
-        unread_count = Notification.objects.filter(
-            recipient_id=notification.recipient_id,
-            kind=notification.kind,
-            read_at__isnull=True,
-        ).count()
-        async_to_sync(channel_layer.group_send)(
-            f"notifications_{notification.recipient_id}",
-            {
-                "type": "notification.created",
-                "notification": serialize_notification(notification),
-                "unread_count": unread_count,
-            },
-        )
-    except Exception:
-        logger.exception("Unable to publish notification %s over WebSocket", notification.pk)
+    _group_send(notification.recipient_id, {
+        "type": "notification.created",
+        "notification": serialize_notification(notification),
+        "unread_count": unread(notification.recipient_id).filter(kind=notification.kind).count(),
+    })
 
 
 def publish_notification_snapshot(user_id):
-    try:
-        channel_layer = get_channel_layer()
-        if channel_layer is None:
-            return
-        async_to_sync(channel_layer.group_send)(
-            f"notifications_{user_id}",
-            {"type": "notifications.refresh"},
-        )
-    except Exception:
-        logger.exception("Unable to refresh notifications for account %s", user_id)
+    _group_send(user_id, {"type": "notifications.refresh"})

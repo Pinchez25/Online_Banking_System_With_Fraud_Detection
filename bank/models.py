@@ -7,12 +7,14 @@ from django.utils.translation import gettext_lazy as _
 
 from bank.services.utils import (
     TRANSACTION_REFERENCE_LENGTH,
-    TRANSACTION_TYPES, generate_transaction_id,
+    TRANSACTION_TYPES,
+    generate_transaction_id,
 )
 
 
 class Transaction(models.Model):
     class Status(models.TextChoices):
+        SCREENING = "screening", _("Fraud screening")
         PENDING = "pending", _("Pending approval")
         APPROVED = "approved", _("Approved")
         REJECTED = "rejected", _("Rejected")
@@ -59,7 +61,7 @@ class Transaction(models.Model):
         _("Status"),
         max_length=12,
         choices=Status.choices,
-        default=Status.PENDING,
+        default=Status.SCREENING,
     )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -84,6 +86,16 @@ class Transaction(models.Model):
                 fields=["account", "-date"],
                 name="txn_account_date_idx",
             ),
+            models.Index(
+                fields=["recipient", "-date"],
+                name="txn_recipient_date_idx",
+            ),
+            # Approval queue: only the small set of open transactions is indexed.
+            models.Index(
+                fields=["-date"],
+                condition=Q(status__in=["screening", "pending"]),
+                name="txn_open_date_idx",
+            ),
         ]
         constraints = [
             models.CheckConstraint(
@@ -100,80 +112,13 @@ class Transaction(models.Model):
 
     def approve(self, approved_by=None):
         """Approve this transaction and apply its balance changes."""
-        from bank.services.service import approve_transaction
+        from bank.services.approval import approve_transaction
 
         approved_txn = approve_transaction(self, approved_by)
         self.status = approved_txn.status
         self.approved_by = approved_txn.approved_by
         self.approved_at = approved_txn.approved_at
         return self
-
-
-class TransactionLog(models.Model):
-    """Audit record for a money movement or a blocked transfer attempt."""
-
-    sender_account = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="sent_transaction_logs",
-    )
-    receiver_account = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="received_transaction_logs",
-    )
-    amount = models.DecimalField(
-        _("Amount"),
-        max_digits=12,
-        decimal_places=2,
-    )
-    date = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_("Date"),
-    )
-    is_fraud = models.BooleanField(
-        _("Fraud"),
-        default=False,
-    )
-    fraud_probability = models.FloatField(
-        null=True,
-        blank=True,
-    )
-    fraud_model_version = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-    )
-    fraud_threshold = models.FloatField(
-        null=True,
-        blank=True,
-    )
-
-    class Meta:
-        verbose_name = _("Transaction Log")
-        verbose_name_plural = _("Transaction Logs")
-        ordering = ["-date"]
-        indexes = [
-            models.Index(
-                fields=["sender_account", "-date"],
-                name="txlog_sender_date_idx",
-            ),
-            models.Index(
-                fields=["receiver_account", "-date"],
-                name="txlog_receiver_date_idx",
-            ),
-            models.Index(
-                fields=["is_fraud", "-date"],
-                name="txlog_fraud_date_idx",
-            ),
-        ]
-
-    def __str__(self):
-        return str(self.pk)
 
 
 class Notification(models.Model):

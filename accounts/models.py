@@ -35,6 +35,7 @@ class Account(AbstractUser):
         help_text=_("Customer credit card number"),
         null=True,
         blank=True,
+        db_index=True,  # recipient lookup on every transfer
     )
     user_type = models.CharField(
         _("User Type"),

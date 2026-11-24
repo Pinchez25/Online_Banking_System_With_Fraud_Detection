@@ -49,7 +49,7 @@ def _lock_account(account_id):
     except Account.DoesNotExist:
         raise ValueError(
             "The account associated with this transaction no longer exists."
-        )
+        ) from None
 
 
 def _lock_transfer_accounts(sender_id, recipient_id):
@@ -69,7 +69,7 @@ def _lock_transfer_accounts(sender_id, recipient_id):
         except Account.DoesNotExist:
             raise ValueError(
                 "The transfer account no longer exists."
-            )
+            ) from None
 
     return (
         locked_accounts[sender_id],
@@ -122,7 +122,7 @@ def approve_transaction(transaction_instance, approved_by=None):
                 .get(pk=transaction_instance.pk)
             )
         except Transaction.DoesNotExist:
-            raise ValueError("The transaction no longer exists.")
+            raise ValueError("The transaction no longer exists.") from None
 
         if transaction_instance.status != Transaction.Status.PENDING:
             raise ValueError("Only pending transactions can be approved.")
