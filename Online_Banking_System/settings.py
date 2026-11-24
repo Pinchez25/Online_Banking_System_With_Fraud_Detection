@@ -3,8 +3,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import dj_database_url
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from django.urls import reverse_lazy
 from dotenv import load_dotenv
@@ -42,8 +40,6 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'fraud.apps.FraudConfig',
     'django_browser_reload',
-    'django_user_agents',
-    'preventconcurrentlogins',
     'baton.autodiscover',
 ]
 
@@ -57,8 +53,6 @@ CACHES = {
     }
 }
 
-USER_AGENTS_CACHE = 'default'
-
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -68,17 +62,17 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
-    'django_user_agents.middleware.UserAgentMiddleware',
-    'preventconcurrentlogins.middleware.PreventConcurrentLoginsMiddleware',
     'accounts.middleware.BlockedAccountMiddleware',
 
 ]
 
 ROOT_URLCONF = "Online_Banking_System.urls"
 
+# Sliding 5-minute inactivity timeout: each request re-saves the session,
+# pushing its expiry forward.
 SESSION_EXPIRE_SECONDS = 300
-SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True
-SESSION_TIMEOUT_REDIRECT = reverse_lazy('accounts:login')
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 # Keep the authentication cookie when the browser suspends or the user closes
 # a tab. The timeout middleware still expires inactive sessions after the
 # configured inactivity period.
@@ -128,14 +122,16 @@ CHANNEL_LAYERS = {
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=(
-            f"postgresql://{os.getenv('POSTGRES_USER', 'postgres')}:{os.getenv('POSTGRES_PASSWORD', '')}"
-            f"@{os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}"
-            f"/{os.getenv('POSTGRES_DB', 'bank')}"
-        ),
-        conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "60")),
-    )
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB", "bank"),
+        "USER": os.getenv("POSTGRES_USER", "postgres"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
+    }
 }
 
 # ---------------------------------------------------------------------------
