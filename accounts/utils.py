@@ -7,6 +7,8 @@ from django.utils import timezone
 from PIL import Image, ImageOps
 from user_agents import parse as parse_user_agent
 
+from institution.services import get_institution
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,15 +48,16 @@ def get_login_agent(request) -> None:
         "browser": f"{user_agent.browser.family} {user_agent.browser.version_string}".strip(),
         "device_type": _describe_device(user_agent),
         "login_time": timezone.now(),
+        "institution": get_institution(),
     }
 
     try:
-        text_body = render_to_string("accounts/emails/login_agent.txt", context)
-        html_body = render_to_string("accounts/emails/login_agent.html", context)
+        text_body = render_to_string("emails/login_agent.txt", context)
+        html_body = render_to_string("emails/login_agent.html", context)
         from_email = getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER)
 
         email = EmailMultiAlternatives(
-            subject=f"Login alert for {account.username}",
+            subject=f"{context['institution'].name}: login alert for {account.username}",
             body=text_body,
             from_email=from_email,
             to=[account.email],

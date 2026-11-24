@@ -22,6 +22,8 @@ from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, FormView, TemplateView, UpdateView
 
+from institution.services import get_institution
+
 from .forms import (
     AccountDeactivationForm,
     AccountRegistrationForm,
@@ -202,13 +204,14 @@ class AccountPasswordChangeDoneView(LoginRequiredMixin, PasswordChangeDoneView):
 
 class AccountPasswordResetView(PasswordResetView):
     template_name = "accounts/password_reset_form.html"
-    email_template_name = "accounts/emails/password_reset_email.txt"
-    html_email_template_name = "accounts/emails/password_reset_email.html"
-    subject_template_name = "accounts/emails/password_reset_subject.txt"
+    email_template_name = "emails/password_reset_email.txt"
+    html_email_template_name = "emails/password_reset_email.html"
+    subject_template_name = "emails/password_reset_subject.txt"
     success_url = reverse_lazy("accounts:password-reset-done")
 
     def form_valid(self, form):
         logger.info("Password reset requested for email domain: %s", form.cleaned_data["email"].split("@")[-1])
+        self.extra_email_context = {"institution": get_institution()}
         return super().form_valid(form)
 
 
