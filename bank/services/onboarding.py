@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Account
+from accounts.policies import ensure_not_own
 from accounts.validators import luhn_checksum_ok
 from bank.models import Card, Notification
 from bank.services.notifications import create_alert
@@ -63,7 +64,8 @@ def _lock_pending(account_id) -> Account:
     return account
 
 
-def approve_application(account: Account) -> Account:
+def approve_application(account: Account, *, reviewer=None) -> Account:
+    ensure_not_own(reviewer, account.pk, subject="account application")
     with transaction.atomic():
         account = _lock_pending(account.pk)
         account.status = Account.Status.ACTIVE
@@ -82,7 +84,7 @@ def approve_application(account: Account) -> Account:
     return account
 
 
-def reject_application(account: Account, reason: str = "") -> Account:
+def reject_application(account: Account, reason: str = "", *, reviewer=None) -> Account:
     with transaction.atomic():
         account = _lock_pending(account.pk)
         account.status = Account.Status.REJECTED

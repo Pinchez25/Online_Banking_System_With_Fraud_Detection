@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -45,11 +46,8 @@ class TransactionApprovalMixin:
             self.message_user(request, ngettext(
                 "%d transaction was successfully approved.", "%d transactions were successfully approved.",
                 result.approved_count) % result.approved_count, messages.SUCCESS)
-        if result.error_count:
-            self.message_user(request, ngettext(
-                "%d transaction could not be approved due to validation errors.",
-                "%d transactions could not be approved due to validation errors.",
-                result.error_count) % result.error_count, messages.WARNING)
+        for reference, reason in result.errors:
+            self.message_user(request, f"{reference} was not approved: {reason}", messages.WARNING)
         if not result.approved_count and not result.error_count:
             self.message_user(request, _("No pending transactions were selected for approval."), messages.INFO)
 
@@ -154,7 +152,7 @@ class TransactionAdmin(TransactionApprovalMixin, ModelAdmin):
             obj.status = Transaction.Status.PENDING
             try:
                 approve_transaction(obj, approved_by=request.user)
-            except ValueError as error:
+            except (ValueError, PermissionDenied) as error:
                 self.message_user(request, str(error), level=messages.ERROR)
             return
         super().save_model(request, obj, form, change)

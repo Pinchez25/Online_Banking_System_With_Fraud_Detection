@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -76,9 +77,9 @@ class AccountAdmin(UserAdmin, ModelAdmin):
     def _decide(self, request, object_id, decide, verb):
         account = Account.objects.get(pk=object_id)
         try:
-            decide(account)
+            decide(account, reviewer=request.user)
             self.message_user(request, f"{account.username}'s application was {verb}.", messages.SUCCESS)
-        except ApplicationError as error:
+        except (ApplicationError, PermissionDenied) as error:
             self.message_user(request, str(error), messages.WARNING)
         return redirect(request.headers.get("referer") or reverse("admin:accounts_account_changelist"))
 
