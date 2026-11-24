@@ -106,7 +106,7 @@ uv run honcho start                  # web, Celery workers + beat, both Kafka co
 
 | Process          | What it does                                                    |
 |------------------|-----------------------------------------------------------------|
-| `web`            | Daphne (HTTP + WebSockets) on http://127.0.0.1:8000             |
+| `web`            | `runserver` on Daphne (HTTP, WebSockets, auto-reload), :8000    |
 | `worker`         | Celery default queue: outbox relay                              |
 | `ml_worker`      | Celery `ml` queue, concurrency 1 (memory-bound training)        |
 | `beat`           | Outbox sweep every 10s, published-outbox purge hourly           |
