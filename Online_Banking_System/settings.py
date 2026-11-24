@@ -132,7 +132,8 @@ LOANS = {
 
 # TODO: remove before any real deployment. Lets staff approve their own transactions,
 # loans and account applications so a single-user test install can exercise approvals.
-ALLOW_SELF_APPROVAL = os.getenv("ALLOW_SELF_APPROVAL", "false").lower() in {"1", "true", "yes", "on"}
+# Always off when DEBUG is off.
+ALLOW_SELF_APPROVAL = DEBUG and os.getenv("ALLOW_SELF_APPROVAL", "false").lower() in {"1", "true", "yes", "on"}
 
 TRANSACTIONS_PER_PAGE = 25
 EXPORT_PDF_MAX_ROWS = 5_000

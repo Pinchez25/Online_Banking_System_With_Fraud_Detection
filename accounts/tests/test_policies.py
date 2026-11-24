@@ -51,7 +51,12 @@ class SelfApprovalTests(TestCase):
         self.staff.refresh_from_db()
         self.assertEqual(self.staff.bank_balances, Decimal("440"))
 
-    @override_settings(ALLOW_SELF_APPROVAL=True)
+    @override_settings(ALLOW_SELF_APPROVAL=True, DEBUG=False)
+    def test_toggle_is_ignored_when_debug_is_off(self):
+        with self.assertRaises(SelfApprovalError):
+            approve_transaction(self.deposit, approved_by=self.staff)
+
+    @override_settings(ALLOW_SELF_APPROVAL=True, DEBUG=True)
     def test_toggle_allows_self_approval_for_single_user_testing(self):
         approve_transaction(self.deposit, approved_by=self.staff)
         self.deposit.refresh_from_db()
