@@ -21,6 +21,20 @@ ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "localhost,
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()]
 
 AUTH_USER_MODEL = 'accounts.Account'
+
+# ---------------------------------------------------------------------------
+# Bank identity. The name and contact details live in the Institution model
+# (editable in the back office); these values seed it on first use. Currency
+# and time zone are fixed per deployment: amounts are stored without a currency.
+# ---------------------------------------------------------------------------
+INSTITUTION_DEFAULTS = {
+    "name": os.getenv("BANK_NAME", "Demo Bank"),
+    "legal_notice": os.getenv("BANK_LEGAL_NOTICE", ""),
+    "support_email": os.getenv("BANK_SUPPORT_EMAIL", "support@example.com"),
+    "support_phone": os.getenv("BANK_SUPPORT_PHONE", "+000 000 000"),
+}
+BANK_CURRENCY = os.getenv("BANK_CURRENCY", "KES")
+TIME_ZONE = os.getenv("TIME_ZONE", "Africa/Nairobi")
 LOGIN_URL = reverse_lazy('accounts:login')
 LOGIN_REDIRECT_URL = reverse_lazy('bank:dashboard')
 
@@ -40,6 +54,7 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'fraud.apps.FraudConfig',
     'loans.apps.LoansConfig',
+    'institution.apps.InstitutionConfig',
 ]
 
 
@@ -94,6 +109,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 'bank.context_processors.shell',
+                'institution.context_processors.institution',
 
             ],
         },
@@ -154,7 +170,7 @@ CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:63
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TIMEZONE = "Africa/Nairobi"
+CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_ROUTES = {"fraud.tasks.training.*": {"queue": "ml"}}
@@ -207,7 +223,6 @@ AUTHENTICATION_BACKENDS = [
 
 LANGUAGE_CODE = "en-GB"
 
-TIME_ZONE = "Africa/Nairobi"
 
 USE_I18N = True
 
@@ -221,8 +236,8 @@ EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 
 UNFOLD = {
-    "SITE_TITLE": "Kwetu Bank",
-    "SITE_HEADER": "Kwetu Bank",
+    "SITE_TITLE": "Online_Banking_System.admin_ui.site_title",
+    "SITE_HEADER": "Online_Banking_System.admin_ui.site_title",
     "SITE_SUBHEADER": "Back office",
     "SITE_SYMBOL": "account_balance",
     "SITE_URL": "/",

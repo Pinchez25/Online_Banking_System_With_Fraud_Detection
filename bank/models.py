@@ -8,6 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from accounts.validators import validate_card_number
 from bank.ledger import TransactionType
 from bank.services.utils import TRANSACTION_REFERENCE_LENGTH, generate_transaction_id
+from institution.services import institution_name
 
 
 class Transaction(models.Model):
@@ -139,7 +140,7 @@ class Notification(models.Model):
     sender_name = models.CharField(
         max_length=100,
         blank=True,
-        default="Kwetu Bank",
+        default=institution_name,
     )
     title = models.CharField(
         max_length=120,

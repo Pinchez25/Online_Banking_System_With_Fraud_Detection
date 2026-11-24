@@ -16,6 +16,7 @@ from accounts.models import Account, Profile
 from bank.models import Beneficiary, Card, Notification, Transaction
 from events.models import OutboxEvent
 from fraud.models import FraudModelVersion, RiskAssessment
+from institution.services import format_money, institution_name
 from loans.models import Loan
 
 BADGE_CACHE_KEY = "admin:badge-counts"
@@ -159,7 +160,7 @@ def _kpis(today_start) -> list[dict]:
          "footer": "Flagged by behavioural rules or the model"},
         {"title": "Blocked accounts", "value": counts["blocked"], "href": _changelist(Account, is_blocked__exact=1),
          "footer": f"{today['blocked']} transactions blocked today ({block_rate:.1%})"},
-        {"title": "Approved volume today", "value": f"KES {today['volume'] or 0:,.2f}",
+        {"title": "Approved volume today", "value": f"{format_money(today['volume'] or 0)}",
          "href": _changelist(Transaction, status__exact=Transaction.Status.APPROVED),
          "footer": f"{today['total']} transactions requested today"},
     ]
@@ -195,7 +196,7 @@ def _review_queue() -> dict:
         .order_by("-risk_score")[:REVIEW_QUEUE_SIZE]
     )
     return {
-        "headers": ["Reference", "Account", "Amount (KES)", "Risk", "Why"],
+        "headers": ["Reference", "Account", f"Amount ({settings.BANK_CURRENCY})", "Risk", "Why"],
         "rows": [
             [
                 a.transaction.transaction_id,
@@ -225,3 +226,7 @@ def dashboard(request, context: dict) -> dict:
         "models_url": _changelist(FraudModelVersion),
     })
     return context
+
+
+def site_title(request):
+    return institution_name()
