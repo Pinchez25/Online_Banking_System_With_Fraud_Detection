@@ -7,6 +7,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.csv as pacsv
 
 from fraud.features import DEPOSIT, TRANSFER, WITHDRAWAL
 
@@ -23,18 +26,12 @@ _MERCHANT_OFFSET = 10**10  # PaySim ids are <= 10 digits; merchants ("M...") get
 def _numeric_ids(column) -> np.ndarray:
     """'C1231006815' -> 1231006815, 'M1979787155' -> 1979787155 + offset.
     Vectorised in Arrow, so 12.7M ids never become Python strings."""
-    import pyarrow as pa
-    import pyarrow.compute as pc
-
     number = pc.cast(pc.utf8_slice_codeunits(column, 1), pa.int64()).to_numpy()
     is_merchant = pc.equal(pc.utf8_slice_codeunits(column, 0, 1), "M").to_numpy(zero_copy_only=False)
     return number + is_merchant * _MERCHANT_OFFSET
 
 
 def load_paysim(csv_path: Path) -> pd.DataFrame:
-    import pyarrow as pa
-    import pyarrow.csv as pacsv
-
     table = pacsv.read_csv(csv_path, convert_options=pacsv.ConvertOptions(
         include_columns=["step", "type", "amount", "nameOrig", "oldbalanceOrg", "nameDest", "oldbalanceDest", "isFraud"],
         column_types={"step": pa.int32(), "type": pa.dictionary(pa.int32(), pa.string()), "isFraud": pa.int8()},

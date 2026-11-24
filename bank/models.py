@@ -112,7 +112,7 @@ class Transaction(models.Model):
 
     def approve(self, approved_by=None):
         """Approve this transaction and apply its balance changes."""
-        from bank.services.approval import approve_transaction
+        from bank.services.approval import approve_transaction  # circular: approval imports bank.models
 
         approved_txn = approve_transaction(self, approved_by)
         self.status = approved_txn.status

@@ -15,6 +15,7 @@ from events import topics
 from events.models import OutboxEvent
 from fraud.engine import RiskEngine
 from fraud.features import MODEL_FEATURES
+from fraud.handlers import score_transaction
 from fraud.models import FraudModelVersion, RiskAssessment
 from fraud.profiles import ProfileStore
 from fraud.registry import LoadedModel
@@ -134,8 +135,6 @@ class ScreeningPipelineTests(TestCase):
     def test_redelivered_events_are_idempotent(self):
         txn = self.submit(txn_type="T", amount="500", recipient=self.recipient)
         payload = OutboxEvent.objects.get(topic=topics.TRANSACTION_REQUESTED).payload
-
-        from fraud.handlers import score_transaction
 
         with self.captureOnCommitCallbacks(execute=True):
             score_transaction(payload)  # simulated Kafka redelivery

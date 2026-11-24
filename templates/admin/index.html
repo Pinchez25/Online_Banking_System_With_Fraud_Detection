@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% load i18n unfold %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_("Django site admin") }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6">
+    <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {% for kpi in kpis %}
+            {% component "unfold/components/card.html" with href=kpi.href footer=kpi.footer size="md" %}
+                {% component "unfold/components/text.html" %}{{ kpi.title }}{% endcomponent %}
+                {% component "unfold/components/title.html" %}{{ kpi.value }}{% endcomponent %}
+            {% endcomponent %}
+        {% endfor %}
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-3">
+        <div class="xl:col-span-2">
+            {% component "unfold/components/card.html" with title="Fraud decisions" description="Screened transactions per day, last 14 days" %}
+                {% component "unfold/components/chart/line.html" with data=decision_chart height=280 %}{% endcomponent %}
+            {% endcomponent %}
+        </div>
+
+        {% component "unfold/components/card.html" with title="Active model" description="Scores every withdrawal and transfer" href=models_url %}
+            {% if active_model %}
+                <dl class="grid grid-cols-2 gap-y-3 text-sm">
+                    <dt class="text-subtle">Version</dt><dd class="font-medium text-important">{{ active_model.version }}</dd>
+                    <dt class="text-subtle">Algorithm</dt><dd class="font-medium text-important">{{ active_model.name }}</dd>
+                    <dt class="text-subtle">Test PR-AUC</dt><dd class="font-medium text-important">{{ active_model_test.pr_auc|floatformat:3 }}</dd>
+                    <dt class="text-subtle">Recall at review</dt><dd class="font-medium text-important">{{ active_model_test.recall|floatformat:3 }}</dd>
+                    <dt class="text-subtle">Precision at review</dt><dd class="font-medium text-important">{{ active_model_test.precision|floatformat:3 }}</dd>
+                    <dt class="text-subtle">Thresholds</dt><dd class="font-medium text-important">{{ active_model.review_threshold|floatformat:2 }} / {{ active_model.block_threshold|floatformat:2 }}</dd>
+                </dl>
+            {% else %}
+                {% component "unfold/components/text.html" %}No active model: transactions are scored by behavioural rules only. Run <code>manage.py train_fraud_model</code>.{% endcomponent %}
+            {% endif %}
+        {% endcomponent %}
+    </div>
+
+    {% component "unfold/components/card.html" with title="Manual review queue" description="Open cases, highest risk first" href=review_queue_url %}
+        {% if review_queue.rows %}
+            {% component "unfold/components/table.html" with table=review_queue card_included=1 striped=1 %}{% endcomponent %}
+        {% else %}
+            {% component "unfold/components/text.html" %}Nothing waiting for review.{% endcomponent %}
+        {% endif %}
+    {% endcomponent %}
+</div>
+{% endblock %}

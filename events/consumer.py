@@ -11,6 +11,8 @@ import logging
 import signal
 import time
 
+from confluent_kafka import Consumer, Producer
+from confluent_kafka.admin import AdminClient, NewTopic
 from django.conf import settings
 from django.db import close_old_connections
 
@@ -21,8 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_topics(names, *, partitions: int | None = None) -> None:
-    from confluent_kafka.admin import AdminClient, NewTopic
-
     admin = AdminClient({"bootstrap.servers": settings.KAFKA_BOOTSTRAP_SERVERS})
     existing = set(admin.list_topics(timeout=10).topics)
     partitions = partitions or settings.KAFKA_TOPIC_PARTITIONS
@@ -40,8 +40,6 @@ def ensure_topics(names, *, partitions: int | None = None) -> None:
 
 class GroupConsumer:
     def __init__(self, group: str, *, max_retries: int | None = None):
-        from confluent_kafka import Consumer, Producer
-
         self.group = group
         self.handlers = registry.handlers_for_group(group)
         if not self.handlers:

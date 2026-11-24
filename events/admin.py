@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
-from django.db.models import F
+from unfold.admin import ModelAdmin
+from unfold.decorators import display
 
 from events.models import OutboxEvent
 from events.tasks import relay_outbox
@@ -19,8 +20,8 @@ class PublishedFilter(admin.SimpleListFilter):
 
 
 @admin.register(OutboxEvent)
-class OutboxEventAdmin(admin.ModelAdmin):
-    list_display = ("id", "topic", "key", "created_at", "published_at", "attempts")
+class OutboxEventAdmin(ModelAdmin):
+    list_display = ("id", "topic", "key", "published_badge", "attempts", "created_at", "published_at")
     list_filter = (PublishedFilter, "topic")
     search_fields = ("key",)
     readonly_fields = [f.name for f in OutboxEvent._meta.fields]
@@ -30,8 +31,13 @@ class OutboxEventAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
+    @display(description="State", label={True: "success", False: "warning"})
+    def published_badge(self, obj):
+        published = obj.published_at is not None
+        return published, "Published" if published else "Pending"
+
     @admin.action(description="Re-publish selected events")
     def requeue(self, request, queryset):
-        updated = queryset.update(published_at=None, attempts=F("attempts"))
+        updated = queryset.update(published_at=None)
         relay_outbox.delay()
         self.message_user(request, f"{updated} event(s) queued for re-publishing.", messages.SUCCESS)

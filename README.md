@@ -33,7 +33,7 @@ for customers to:
 - Deposit, withdrawal, and transfer services
 - Real-time fraud screening of every deposit, withdrawal and transfer, with a staff review queue
 - Real-time notification center with read/unread tracking
-- Admin-friendly project configuration via Django admin and Baton
+- Back office on Django Unfold (`/admin/`): operations dashboard, approval and manual-review queues with one-click approve/reject, model version activation
 - Email-based authentication and password reset support
 - Docker Compose stack: PostgreSQL, Redis, Kafka, Kafka UI and Mailpit
 

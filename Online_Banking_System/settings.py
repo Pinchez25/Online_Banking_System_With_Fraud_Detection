@@ -1,6 +1,5 @@
 import os
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -28,7 +27,8 @@ LOGIN_REDIRECT_URL = reverse_lazy('bank:dashboard')
 INSTALLED_APPS = [
     "daphne",
     "channels",
-    'baton',
+    "unfold",  # must precede django.contrib.admin to override its templates
+    "unfold.contrib.filters",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'fraud.apps.FraudConfig',
     'django_browser_reload',
-    'baton.autodiscover',
 ]
 
 
@@ -205,13 +204,20 @@ EMAIL_USE_TLS = os.environ["EMAIL_USE_TLS"].lower() == "true"
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 
-BATON = {
-    'SITE_HEADER': 'Online Bank',
-    'SITE_TITLE': 'Kwetu Bank',
-    'INDEX_TITLE': 'Kwetu Bank Administration',
-    'COPYRIGHT': f'copyright © {datetime.now().year} <a href="https://www.github.com/Pinchez25">Pinchez</a>',
-    'POWERED_BY': '<a href="https://www.github.com/Pinchez25">Peter Thua</a>',
-    'SUPPORT_HREF': 'https://www.github.com/Pinchez25'
+UNFOLD = {
+    "SITE_TITLE": "Kwetu Bank",
+    "SITE_HEADER": "Kwetu Bank",
+    "SITE_SUBHEADER": "Back office",
+    "SITE_SYMBOL": "account_balance",
+    "SITE_URL": "/",
+    "ENVIRONMENT": "Online_Banking_System.admin_ui.environment",
+    "DASHBOARD_CALLBACK": "Online_Banking_System.admin_ui.dashboard",
+    "COMMAND": {"search_models": True},
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": "Online_Banking_System.admin_ui.navigation",
+    },
 }
 
 # Static files (CSS, JavaScript, Images)
@@ -311,4 +317,4 @@ if TESTING:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
     EVENT_BUS = "inline"
-    FRAUD = {**FRAUD, "PROFILE_REDIS_URL": None}  # None -> in-process fakeredis
+    TEST_RUNNER = "Online_Banking_System.test_runner.TestRunner"

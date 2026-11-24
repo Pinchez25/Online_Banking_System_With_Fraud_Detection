@@ -10,7 +10,7 @@ class BlockedAccountMiddleware:
     still hold a live session; their next request is logged out here. Reads
     only the already-loaded request.user, adding no queries."""
 
-    EXEMPT_PREFIXES = ("/static/", "/media/", "/admin/", "/baton/")
+    EXEMPT_PREFIXES = ("/static/", "/media/", "/admin/")
 
     def __init__(self, get_response):
         self.get_response = get_response
