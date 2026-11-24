@@ -73,9 +73,6 @@ ROOT_URLCONF = "Online_Banking_System.urls"
 SESSION_EXPIRE_SECONDS = 300
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
-# Keep the authentication cookie when the browser suspends or the user closes
-# a tab. The timeout middleware still expires inactive sessions after the
-# configured inactivity period.
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_AGE = SESSION_EXPIRE_SECONDS
 
@@ -98,7 +95,7 @@ TEMPLATES = [
     },
 ]
 
-# (min, max) per transaction type code; the single source of truth for limits.
+# (min, max) amount per transaction type.
 TRANSACTION_LIMITS = {
     "D": (10, 1_000_000),
     "W": (10, 1_000_000),

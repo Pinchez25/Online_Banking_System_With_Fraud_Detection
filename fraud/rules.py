@@ -1,7 +1,6 @@
 """Behavioural rules: deviations from an account's *own* history, plus
-network patterns (mule fan-in, pass-through). Each rule is small, declarative
-and independently testable; weights are combined with a noisy-OR so several
-weak signals add up without any single rule needing to be decisive."""
+network patterns (mule fan-in, pass-through). Weights combine as a noisy-OR,
+so several weak signals add up without any single rule being decisive."""
 from __future__ import annotations
 
 import math

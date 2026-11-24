@@ -1,10 +1,9 @@
 """The single feature contract shared by training (offline, vectorised over
 PaySim) and serving (online, one event against Redis profiles).
 
-Both paths first produce the same *raw signals* (counts, sums, balances),
-then call `derive_features` — so the arithmetic that turns signals into model
-inputs exists exactly once. `fraud.tests.test_parity` asserts the offline and
-online signal builders agree.
+Both paths produce the same raw signals (counts, sums, balances) and pass
+them through `derive_features`. `fraud.tests.test_parity` asserts the offline
+and online signal builders agree.
 """
 from __future__ import annotations
 
