@@ -3,7 +3,7 @@ workflows, real-time notifications, and fraud detection powered by a machine lea
 
 ## Overview
 
-Kwetu Bank is a full-stack banking web application built with Django. It provides a simple digital banking experience
+This is a full-stack banking web application built with Django. It provides a simple digital banking experience
 for customers to:
 
 - register and manage personal accounts
@@ -169,12 +169,26 @@ Run Django's system checks:
 uv run python manage.py check
 ```
 
+## Bank Configuration
+
+Nothing about the bank's identity is hard-coded.
+
+| What | Where | Changeable at runtime |
+|------|-------|-----------------------|
+| Name, legal notice, support email and phone | Back office → **Bank profile** (seeded from `BANK_NAME`, `BANK_LEGAL_NOTICE`, `BANK_SUPPORT_EMAIL`, `BANK_SUPPORT_PHONE` on first use) | Yes |
+| Currency code | `BANK_CURRENCY` | No: amounts are stored without a currency |
+| Time zone | `TIME_ZONE` | No |
+| Transaction limits, loan terms and rate, session timeouts | `Online_Banking_System/settings.py` | No |
+
+Templates read the profile as `{{ institution }}` and format amounts with `{{ amount|money }}`; Python code uses
+`institution.services.get_institution()` and `format_money()`.
+
 ## Environment Notes
 
 - The app uses `EMAIL_HOST` and `EMAIL_PORT` for password reset messages and notifications.
 - Mailpit is useful for local development because it captures outbound emails without sending them externally.
 - Redis backs the cache, Channels, Celery and the fraud profiles (separate DB numbers).
-- The app is configured for Nairobi time (`Africa/Nairobi`) and uses a custom `Account` model as the user model.
+- The app uses a custom `Account` model as the user model.
 
 ## Production Considerations
 
