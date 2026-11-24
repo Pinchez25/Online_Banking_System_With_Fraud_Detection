@@ -110,16 +110,6 @@ class Transaction(models.Model):
     def __str__(self):
         return self.transaction_id
 
-    def approve(self, approved_by=None):
-        """Approve this transaction and apply its balance changes."""
-        from bank.services.approval import approve_transaction  # circular: approval imports bank.models
-
-        approved_txn = approve_transaction(self, approved_by)
-        self.status = approved_txn.status
-        self.approved_by = approved_txn.approved_by
-        self.approved_at = approved_txn.approved_at
-        return self
-
 
 class Notification(models.Model):
     class Kind(models.TextChoices):

@@ -378,26 +378,6 @@ class TransactionApprovalTests(TestCase):
         ):
             approve_transaction(transaction_instance)
 
-    def test_transaction_approve_method_uses_service(self):
-        transaction_instance = self.create_transaction(
-            transaction_type="D",
-            amount="100.00",
-        )
-
-        transaction_instance.approve()
-
-        transaction_instance.refresh_from_db()
-        self.account.refresh_from_db()
-
-        self.assertEqual(
-            transaction_instance.status,
-            Transaction.Status.APPROVED,
-        )
-        self.assertEqual(
-            self.account.bank_balances,
-            Decimal("1100.00"),
-        )
-
     def test_approved_at_is_set_only_after_approval(self):
         transaction_instance = self.create_transaction(
             transaction_type="D",
@@ -561,4 +541,3 @@ class BatchApprovalServiceTests(TestCase):
                 Transaction.objects.filter(pk=t1.pk),
                 approved_by=self.unauthorized_user,
             )
-
