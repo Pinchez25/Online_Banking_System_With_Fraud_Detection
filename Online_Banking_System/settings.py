@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from datetime import datetime
 import dj_database_url
@@ -269,3 +270,15 @@ LOGGING = {
         },
     },
 }
+
+# ---------------------------------------------------------------------------
+# Test-run overrides: keep the suite fast and hermetic (no SMTP/Redis needed).
+# PBKDF2's 1.5M iterations cost ~1s per create_user; MD5 is fine for fixtures.
+# ---------------------------------------------------------------------------
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+
+if TESTING:
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
