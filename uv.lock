@@ -81,7 +81,6 @@ dependencies = [
     { name = "channels-redis" },
     { name = "confluent-kafka" },
     { name = "django" },
-    { name = "django-browser-reload" },
     { name = "django-unfold" },
     { name = "pandas" },
     { name = "pillow" },
@@ -109,7 +108,6 @@ requires-dist = [
     { name = "channels-redis", specifier = ">=4.2,<5" },
     { name = "confluent-kafka", specifier = ">=2.10" },
     { name = "django", specifier = ">=6.1.1" },
-    { name = "django-browser-reload", specifier = ">=1.21.0" },
     { name = "django-unfold", specifier = ">=0.110.1" },
     { name = "pandas", specifier = ">=3.0.6" },
     { name = "pillow", specifier = ">=13.0" },
@@ -472,19 +470,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f8/d4/8314b5bdef20832f0ac6ae3b3e4d4924e4759fa3b4af27609dd747e7a6be/django-6.1.1.tar.gz", hash = "sha256:7ab93536d8e677aa14554c56426290c69480bf2ee68d7513d4a22f57d6bfeb84", size = 11284905, upload-time = "2026-09-02T17:20:45.621Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/ca/c1040a4fd15754ede7df15fd72fc2e123045b473b253ab5f5284e11c651e/django-6.1.1-py3-none-any.whl", hash = "sha256:585fb82bf15053c42cf52e67c2f1b54a032dca384759315fd6678ab1870d1d72", size = 8419512, upload-time = "2026-09-02T17:20:39.153Z" },
-]
-
-[[package]]
-name = "django-browser-reload"
-version = "1.21.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "asgiref" },
-    { name = "django" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/79/ef/ab407c1a2f14e13c75a6419a2d124954aa0364f62580ad95a3d31dc6c73d/django_browser_reload-1.21.0.tar.gz", hash = "sha256:3335ad3d107eb657f623d1a8e680dfbcab8a83ae1f94df1895e069dddf5604ba", size = 15800, upload-time = "2025-09-22T17:00:35.199Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/61/1b4a8c589652859995bcab87682286443eb9fdf2d7fd584975b9ffc1db33/django_browser_reload-1.21.0-py3-none-any.whl", hash = "sha256:0b2a86ab460774fa9bb142a121c70e75a72f18109f51a4f6de409cd633d3a70d", size = 12852, upload-time = "2025-09-22T17:00:33.479Z" },
 ]
 
 [[package]]

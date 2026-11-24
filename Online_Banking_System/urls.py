@@ -14,5 +14,4 @@ if settings.DEBUG:
     urlpatterns += [
         *staticfiles_urlpatterns(),  # served from app and STATICFILES_DIRS sources, no collectstatic needed
         *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
-        path("__reload__/", include("django_browser_reload.urls")),
     ]

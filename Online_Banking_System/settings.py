@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'bank.apps.BankConfig',
     'accounts.apps.AccountsConfig',
     'fraud.apps.FraudConfig',
-    'django_browser_reload',
 ]
 
 
@@ -60,7 +59,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django_browser_reload.middleware.BrowserReloadMiddleware",
     'accounts.middleware.BlockedAccountMiddleware',
 
 ]
