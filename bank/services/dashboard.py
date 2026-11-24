@@ -1,98 +1,45 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
-from decimal import Decimal
-
-from django.db.models import Q
-from django.utils import timezone
-
-from bank.models import Notification, Transaction
-from bank.services.notifications import latest_unread, unread_counts
+from accounts.models import Account
+from bank.models import Beneficiary, Card
+from bank.services.history import TransactionRow, to_row, transactions_for
+from bank.services.statements import month_summary
+from loans.services import next_due_date, open_loan
 
 RECENT_TRANSACTIONS = 10
-
-
-@dataclass(frozen=True, slots=True)
-class TransactionRow:
-    date: datetime
-    reference: str
-    type: str
-    description: str
-    amount: Decimal
-    direction: str  # "credit" | "debit"
-    status: str
+SEND_AGAIN_LIMIT = 5
+SPENDING_COLOURS = ("#2563eb", "#f59e0b", "#10b981")
 
 
 def recent_transactions(user, limit=RECENT_TRANSACTIONS) -> list[TransactionRow]:
-    """Both sides of the ledger (sent and received) in one indexed query."""
-    rows = (
-        Transaction.objects.filter(Q(account_id=user.pk) | Q(recipient_id=user.pk))
-        .select_related("account", "recipient")
-        .only("date", "transaction_id", "type", "amount", "status", "account_id", "recipient_id",
-              "account__username", "recipient__username")[:limit]
-    )
-    return [_row_for(txn, user.pk) for txn in rows]
+    return [to_row(txn, user.pk) for txn in transactions_for(user.pk)[:limit]]
 
 
-def _row_for(txn: Transaction, user_id) -> TransactionRow:
-    incoming = txn.recipient_id == user_id
-    if txn.type == "T":
-        description = f"Transfer from {txn.account.username}" if incoming else (
-            f"Transfer to {txn.recipient.username}" if txn.recipient else "Transfer"
-        )
-    else:
-        description = txn.get_type_display()
-    return TransactionRow(
-        date=txn.date,
-        reference=txn.transaction_id,
-        type=txn.get_type_display(),
-        description=description,
-        amount=txn.amount,
-        direction="credit" if incoming or txn.type == "D" else "debit",
-        status=txn.status,
-    )
-
-
-def get_dashboard_context(request, **extra):
-    user = request.user
-    profile = getattr(user, "profile", None)
-    counts = unread_counts(user.pk)
-    now = timezone.now()
+def _spending(summary) -> dict:
+    total = summary.spending_total
     return {
-        "summary": {
-            "total_balance": f"{user.bank_balances:,.2f}",
-            "balance_change": "0%",
-            "account_number": "N/A",
-            "account_type": user.get_account_type_display(),
-            "savings_total": "0.00",
-            "savings_goal": "0 active goals",
-            "loans_total": "0.00",
-            "loan_due": "N/A",
-            "national_id": str(user.national_id) if user.national_id is not None else "N/A",
-        },
-        "alerts": latest_unread(user.pk, Notification.Kind.ALERT),
-        "alerts_unread_count": counts[Notification.Kind.ALERT],
-        "messages_list": latest_unread(user.pk, Notification.Kind.MESSAGE),
-        "messages_unread_count": counts[Notification.Kind.MESSAGE],
-        "transactions": recent_transactions(user),
-        "cards": [],
-        "spending": {"total": "0", "categories": []},
-        "beneficiaries": [],
-        "profile": {
-            "first_name": profile.first_name if profile else "",
-            "last_name": profile.last_name if profile else "",
-            "email": user.email,
-        },
-        "notification_settings": [
-            {"label": "Transaction alerts", "hint": "Get notified for every debit or credit", "enabled": True},
-            {"label": "Low balance warnings", "hint": "Alert when balance drops below KES 5,000", "enabled": True},
-            {"label": "Marketing emails", "hint": "Product news, offers and surveys", "enabled": False},
-            {"label": "SMS notifications", "hint": "Mirror alerts to your registered phone number", "enabled": True},
+        "total": total,
+        "categories": [
+            {"name": name, "amount": amount, "colour": colour,
+             "percent": round(amount / total * 100) if total else 0}
+            for (name, amount), colour in zip(summary.spending_by_type, SPENDING_COLOURS, strict=True)
         ],
-        "security": {"password_changed": "N/A", "two_factor_enabled": False, "biometric_enabled": False},
-        "preferences": {"currency": "KES", "language": "English", "statement_delivery": "Email"},
-        "current_year": now.year,
-        "today": now.strftime("%A, %d %B %Y"),
-        **extra,
+    }
+
+
+def dashboard_context(user) -> dict:
+    is_open = user.status == Account.Status.ACTIVE
+    summary = month_summary(user) if is_open else None
+    loan = open_loan(user.pk) if is_open else None
+    return {
+        "account_status": user.status,
+        "account_open": is_open,
+        "summary": summary,
+        "loan": loan,
+        "loan_due": next_due_date(loan) if loan else None,
+        "transactions": recent_transactions(user),
+        "cards": Card.objects.filter(account_id=user.pk).exclude(status=Card.Status.CANCELLED)[:2],
+        "beneficiaries": Beneficiary.objects.filter(owner_id=user.pk).select_related("recipient")
+                         .only("nickname", "recipient__account_number")[:SEND_AGAIN_LIMIT],
+        "spending": _spending(summary) if summary else None,
     }
