@@ -18,6 +18,7 @@ from bank.services.beneficiaries import mark_used
 from bank.services.cards import has_usable_card
 from events import outbox, topics
 from events.contracts import TransactionRequested
+from institution.services import format_money
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +50,9 @@ def validate_amount(txn_type: str, amount) -> Decimal:
         raise TransactionRequestError("Enter a valid amount.") from None
     minimum, maximum = settings.TRANSACTION_LIMITS[txn_type]
     if not amount.is_finite() or amount < minimum:
-        raise TransactionRequestError(f"The minimum amount is KES {minimum:,}.")
+        raise TransactionRequestError(f"The minimum amount is {format_money(minimum, places=0)}.")
     if amount > maximum:
-        raise TransactionRequestError(f"The maximum amount is KES {maximum:,}.")
+        raise TransactionRequestError(f"The maximum amount is {format_money(maximum, places=0)}.")
     return amount
 
 
@@ -81,7 +82,7 @@ def request_transaction(*, account, txn_type: str, amount, recipient: Account | 
             raise TransactionRequestError("Withdrawals need an active debit card. Unfreeze your card and try again.",
                                           field=None)
         if txn_type != DEPOSIT and amount > sender.bank_balances:
-            raise TransactionRequestError(f"Insufficient funds. Your balance is KES {sender.bank_balances:,.2f}.")
+            raise TransactionRequestError(f"Insufficient funds. Your balance is {format_money(sender.bank_balances)}.")
 
         txn = Transaction.objects.create(
             account_id=sender.pk,

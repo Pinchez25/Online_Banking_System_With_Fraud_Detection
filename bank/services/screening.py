@@ -12,6 +12,7 @@ from accounts.models import Account
 from bank.models import Notification, Transaction
 from bank.services.notifications import create_alert
 from events.contracts import FraudDecision
+from institution.services import format_money
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ def apply_decision(decision: FraudDecision) -> bool:
             create_alert(
                 recipient_id=txn.account_id,
                 title=f"{txn.get_type_display()} submitted for approval",
-                body=f"KES {txn.amount:,.2f} passed screening and is awaiting approval (ref {txn.transaction_id}).",
+                body=f"{format_money(txn.amount)} passed screening and is awaiting approval (ref {txn.transaction_id}).",
                 level=_LEVEL[decision.decision],
             )
     return True
@@ -55,7 +56,7 @@ def _block(txn: Transaction, decision: FraudDecision) -> None:
         recipient_id=txn.account_id,
         title=f"{txn.get_type_display()} blocked",
         body=(
-            f"We blocked KES {txn.amount:,.2f} (ref {txn.transaction_id}) and temporarily restricted "
+            f"We blocked {format_money(txn.amount)} (ref {txn.transaction_id}) and temporarily restricted "
             "your account. Contact support if you do not recognise this activity."
         ),
         level=Notification.Level.DANGER,
@@ -68,7 +69,7 @@ def _block(txn: Transaction, decision: FraudDecision) -> None:
         transaction.on_commit(lambda: send_mail(
             subject=f"Fraud block: {txn.transaction_id}",
             message=(
-                f"Account {txn.account_id} was blocked.\nAmount: KES {txn.amount:,.2f}\n"
+                f"Account {txn.account_id} was blocked.\nAmount: {format_money(txn.amount)}\n"
                 f"Risk score: {decision.risk_score:.3f} (model {decision.model_version or 'rules-only'})\n"
                 "Reasons:\n" + "\n".join(f"  - {r}" for r in decision.reasons or ["model score"])
             ),

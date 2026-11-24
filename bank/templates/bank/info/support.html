@@ -18,10 +18,10 @@
             {% if user.is_authenticated %}<a class="btn btn--primary" href="{% url 'bank:cards' %}">Go to Cards</a>{% endif %}
         </li>
         <li class="row-list__item">
-            <div><p class="row-list__title">Phone</p><p class="row-list__meta">+254 20 000 0000</p></div>
+            <div><p class="row-list__title">Phone</p><p class="row-list__meta">{{ institution.support_phone }}</p></div>
         </li>
         <li class="row-list__item">
-            <div><p class="row-list__title">Email</p><p class="row-list__meta">support@kwetubank.local</p></div>
+            <div><p class="row-list__title">Email</p><p class="row-list__meta"><a href="mailto:{{ institution.support_email }}">{{ institution.support_email }}</a></p></div>
         </li>
         <li class="row-list__item">
             <div><p class="row-list__title">Account applications</p>

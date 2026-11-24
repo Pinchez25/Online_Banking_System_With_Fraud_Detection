@@ -5,6 +5,8 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
 
+from institution.services import format_money
+
 MONEY = {"max_digits": 12, "decimal_places": 2}
 
 
@@ -45,7 +47,7 @@ class Loan(models.Model):
         ]
 
     def __str__(self):
-        return f"Loan #{self.pk} · KES {self.principal:,.2f}"
+        return f"Loan #{self.pk} · {format_money(self.principal)}"
 
     @property
     def outstanding(self) -> Decimal:

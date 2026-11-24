@@ -8,7 +8,7 @@ from django.utils import timezone
 from fpdf import FPDF
 from fpdf.fonts import FontFace
 
-BANK_NAME = "Kwetu Bank"
+from institution.services import institution_name
 
 
 class _EchoBuffer:
@@ -35,11 +35,11 @@ class _Document(FPDF):
         self.document_title = title
         self.set_auto_page_break(auto=True, margin=15)
         self.set_title(title)
-        self.set_creator(BANK_NAME)
+        self.set_creator(institution_name())
 
     def header(self):
         self.set_font("helvetica", "B", 14)
-        self.cell(0, 8, _latin1(f"{BANK_NAME} · {self.document_title}"), new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 8, _latin1(f"{institution_name()} · {self.document_title}"), new_x="LMARGIN", new_y="NEXT")
         self.ln(2)
 
     def footer(self):

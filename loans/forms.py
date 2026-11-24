@@ -4,7 +4,7 @@ from django.conf import settings
 
 class LoanApplicationForm(forms.Form):
     principal = forms.DecimalField(
-        label="Amount (KES)", max_digits=12, decimal_places=2,
+        label=f"Amount ({settings.BANK_CURRENCY})", max_digits=12, decimal_places=2,
         min_value=settings.LOANS["MIN_AMOUNT"], max_value=settings.LOANS["MAX_AMOUNT"],
         widget=forms.NumberInput(attrs={"step": "100", "placeholder": "e.g. 50000"}),
     )
@@ -15,5 +15,5 @@ class LoanApplicationForm(forms.Form):
 
 
 class RepaymentForm(forms.Form):
-    amount = forms.DecimalField(label="Amount (KES)", max_digits=12, decimal_places=2, min_value=1,
+    amount = forms.DecimalField(label=f"Amount ({settings.BANK_CURRENCY})", max_digits=12, decimal_places=2, min_value=1,
                                 widget=forms.NumberInput(attrs={"step": "0.01"}))

@@ -1,7 +1,8 @@
+{% load money %}
 <section class="cards" aria-label="Account summary">
     <article class="card card--accent">
         <p class="card__label">Total balance</p>
-        <p class="card__figure">KES {{ user.bank_balances|floatformat:"2g" }}</p>
+        <p class="card__figure">{{ user.bank_balances|money }}</p>
         {% if summary.change_percent is not None %}
             <p class="card__sub {% if summary.change_percent >= 0 %}card__sub--up{% else %}card__sub--down{% endif %}">
                 {% if summary.change_percent >= 0 %}▲{% else %}▼{% endif %} {{ summary.change_percent|floatformat:1 }}% this month
@@ -19,13 +20,13 @@
 
     <article class="card">
         <p class="card__label">Awaiting approval</p>
-        <p class="card__figure">KES {{ summary.open_requests_total|default:0|floatformat:"2g" }}</p>
+        <p class="card__figure">{{ summary.open_requests_total|default:0|money }}</p>
         <p class="card__sub">{{ summary.open_requests|default:0 }} request{{ summary.open_requests|default:0|pluralize }} in screening or review</p>
     </article>
 
     <article class="card">
         <p class="card__label">Loans outstanding</p>
-        <p class="card__figure">KES {% if loan.status == "active" %}{{ loan.outstanding|floatformat:"2g" }}{% else %}0.00{% endif %}</p>
+        <p class="card__figure">{% if loan.status == "active" %}{{ loan.outstanding|money }}{% else %}{{ 0|money }}{% endif %}</p>
         <p class="card__sub">
             {% if loan_due %}Next instalment {{ loan_due|date:"j M Y" }}
             {% elif loan.status == "applied" %}Application under review

@@ -6,7 +6,7 @@
 {% block auth_content %}
     <div class="auth-head">
         <h2>Sign in</h2>
-        <p>New to Jumla Bank? <a href="{% url 'accounts:register' %}">Create an account</a></p>
+        <p>New to {{ institution.name }}? <a href="{% url 'accounts:register' %}">Create an account</a></p>
     </div>
 
     <form class="auth-form" method="post" action="{% url 'accounts:login' %}">

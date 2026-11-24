@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
 
+from django.conf import settings
 from django.db.models import Q, QuerySet
 
 from bank import ledger
@@ -14,7 +15,7 @@ from bank.ledger import TransactionType
 from bank.models import Transaction
 
 _PARTY_FIELDS = ("username", "first_name", "last_name")
-EXPORT_HEADERS = ("Date", "Reference", "Description", "Type", "Status", "Amount (KES)")
+EXPORT_HEADERS = ("Date", "Reference", "Description", "Type", "Status", f"Amount ({settings.BANK_CURRENCY})")
 
 
 @dataclass(frozen=True, slots=True)

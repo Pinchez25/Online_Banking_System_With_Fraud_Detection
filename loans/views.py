@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 from django.views.generic import TemplateView
 
 from bank.views import OpenAccountRequiredMixin
+from institution.services import format_money
 from loans.forms import LoanApplicationForm, RepaymentForm
 from loans.models import Loan
 from loans.services import LoanError, annual_rate, apply_for_loan, next_due_date, repay_loan
@@ -38,7 +39,7 @@ class LoanView(OpenAccountRequiredMixin, TemplateView):
                 else:
                     loan = repay_loan(account=request.user, loan_id=request.POST.get("loan"), **form.cleaned_data)
                     messages.success(request, "Loan fully repaid. Thank you!" if loan.status == Loan.Status.REPAID
-                                     else f"Payment received. Outstanding: KES {loan.outstanding:,.2f}.")
+                                     else f"Payment received. Outstanding: {format_money(loan.outstanding)}.")
                 return redirect("loans:index")
             except LoanError as error:
                 form.add_error(error.field if error.field in form.fields else None, error.message)

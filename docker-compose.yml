@@ -78,7 +78,7 @@ services:
     ports:
       - "127.0.0.1:${KAFKA_UI_PORT:-8089}:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: kwetu-bank
+      KAFKA_CLUSTERS_0_NAME: bank-system
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
   mailpit:

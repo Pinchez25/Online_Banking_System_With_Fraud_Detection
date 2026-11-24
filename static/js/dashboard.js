@@ -300,6 +300,7 @@ function wireLoanQuote() {
     if (!form) return;
     const output = form.querySelector('[data-loan-quote-output]');
     const monthlyRate = Number(form.dataset.annualRate) / 100 / 12;
+    const currency = form.dataset.currency;
 
     const render = () => {
         const principal = Number(form.elements.principal.value);
@@ -311,8 +312,8 @@ function wireLoanQuote() {
         const instalment = monthlyRate
             ? (principal * monthlyRate) / (1 - (1 + monthlyRate) ** -months)
             : principal / months;
-        const format = (value) => value.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        output.textContent = `About KES ${format(instalment)} a month, KES ${format(instalment * months)} in total.`;
+        const format = (value) => `${currency} ${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        output.textContent = `About ${format(instalment)} a month, ${format(instalment * months)} in total.`;
     };
 
     form.addEventListener('input', render);

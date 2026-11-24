@@ -15,6 +15,7 @@ from accounts.models import Account
 from bank.ledger import TransactionType
 from bank.models import Notification, Transaction
 from bank.services.notifications import create_alert
+from institution.services import format_money
 from loans.models import Loan, LoanRepayment
 
 logger = logging.getLogger(__name__)
@@ -71,8 +72,8 @@ def apply_for_loan(*, account, principal, term_months: int, purpose: str) -> Loa
     limits = settings.LOANS
     principal = _money(principal, "principal")
     if not limits["MIN_AMOUNT"] <= principal <= limits["MAX_AMOUNT"]:
-        raise LoanError(f"Loans range from KES {limits['MIN_AMOUNT']:,} to KES {limits['MAX_AMOUNT']:,}.",
-                        field="principal")
+        low, high = (format_money(limits[k], places=0) for k in ("MIN_AMOUNT", "MAX_AMOUNT"))
+        raise LoanError(f"Loans range from {low} to {high}.", field="principal")
     if term_months not in limits["TERMS_MONTHS"]:
         raise LoanError("Choose one of the available terms.", field="term_months")
     if not account.can_transact:
@@ -119,8 +120,8 @@ def approve_loan(loan: Loan, *, reviewer) -> Loan:
         loan.save(update_fields=["disbursement", "status", "decided_by", "decided_at"])
         create_alert(
             recipient_id=account.pk, level=Notification.Level.SUCCESS, title="Loan approved",
-            body=f"KES {loan.principal:,.2f} has been credited to your account. "
-                 f"Monthly instalment: KES {loan.monthly_instalment:,.2f} for {loan.term_months} months.",
+            body=f"{format_money(loan.principal)} has been credited to your account. "
+                 f"Monthly instalment: {format_money(loan.monthly_instalment)} for {loan.term_months} months.",
         )
     logger.info("Loan %s approved and disbursed", loan.pk)
     return loan
@@ -132,7 +133,7 @@ def reject_loan(loan: Loan, *, reviewer) -> Loan:
         loan.status, loan.decided_by, loan.decided_at = Loan.Status.REJECTED, reviewer, timezone.now()
         loan.save(update_fields=["status", "decided_by", "decided_at"])
         create_alert(recipient_id=loan.account_id, level=Notification.Level.WARNING, title="Loan not approved",
-                     body=f"Your application for KES {loan.principal:,.2f} was not approved.")
+                     body=f"Your application for {format_money(loan.principal)} was not approved.")
     return loan
 
 
@@ -147,9 +148,9 @@ def repay_loan(*, account, loan_id, amount) -> Loan:
         if loan is None or loan.status != Loan.Status.ACTIVE:
             raise LoanError("This loan is not being repaid.")
         if amount > loan.outstanding:
-            raise LoanError(f"The outstanding balance is KES {loan.outstanding:,.2f}.", field="amount")
+            raise LoanError(f"The outstanding balance is {format_money(loan.outstanding)}.", field="amount")
         if amount > payer.bank_balances:
-            raise LoanError(f"Insufficient funds. Your balance is KES {payer.bank_balances:,.2f}.", field="amount")
+            raise LoanError(f"Insufficient funds. Your balance is {format_money(payer.bank_balances)}.", field="amount")
 
         payment = _post(account_id=payer.pk, txn_type=TransactionType.LOAN_REPAYMENT, amount=amount, by=None)
         Account.objects.filter(pk=payer.pk).update(bank_balances=F("bank_balances") - amount)
@@ -158,7 +159,7 @@ def repay_loan(*, account, loan_id, amount) -> Loan:
         if loan.outstanding == 0:
             loan.status = Loan.Status.REPAID
         loan.save(update_fields=["amount_repaid", "status"])
-    logger.info("Loan %s repaid KES %s by account %s", loan.pk, amount, payer.pk)
+    logger.info("Loan %s repaid %s by account %s", loan.pk, amount, payer.pk)
     return loan
 
 

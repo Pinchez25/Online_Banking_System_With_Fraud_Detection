@@ -15,6 +15,8 @@ from django.views.decorators.http import require_POST
 from django.views.generic import FormView, TemplateView
 from django.views.generic.list import ListView
 
+from institution.services import format_money
+
 from . import ledger
 from .forms import BeneficiaryForm, HistoryFilterForm, SendMoneyForm, TransactionForm
 from .models import Beneficiary, Card, Notification
@@ -241,10 +243,10 @@ class StatementDownloadView(LoginRequiredMixin, View):
             title=f"Statement · {statement.label}",
             details=[("Account holder", request.user.get_full_name() or request.user.username),
                      ("Account number", request.user.account_number),
-                     ("Opening balance", f"KES {statement.opening_balance:,.2f}"),
-                     ("Money in", f"KES {statement.money_in:,.2f}"),
-                     ("Money out", f"KES {statement.money_out:,.2f}"),
-                     ("Closing balance", f"KES {statement.closing_balance:,.2f}")],
+                     ("Opening balance", f"{format_money(statement.opening_balance)}"),
+                     ("Money in", f"{format_money(statement.money_in)}"),
+                     ("Money out", f"{format_money(statement.money_out)}"),
+                     ("Closing balance", f"{format_money(statement.closing_balance)}")],
             headers=self.STATEMENT_HEADERS, rows=rows, numeric_columns=(3, 4, 5),
             col_widths=(30, 30, 97, 35, 35, 40),
             note="" if rows else "No completed transactions in this period.",
@@ -315,12 +317,13 @@ class InfoPageView(TemplateView):
 SETTINGS_CONTEXT = {
     "notification_settings": [
         {"label": "Transaction alerts", "hint": "Get notified for every debit or credit", "enabled": True},
-        {"label": "Low balance warnings", "hint": "Alert when balance drops below KES 5,000", "enabled": True},
+        {"label": "Low balance warnings", "enabled": True,
+         "hint": f"Alert when balance drops below {format_money(5000, places=0)}"},
         {"label": "Marketing emails", "hint": "Product news, offers and surveys", "enabled": False},
         {"label": "SMS notifications", "hint": "Mirror alerts to your registered phone number", "enabled": True},
     ],
     "security": {"password_changed": "N/A", "two_factor_enabled": False, "biometric_enabled": False},
-    "preferences": {"currency": "KES", "language": "English", "statement_delivery": "Email"},
+    "preferences": {"currency": settings.BANK_CURRENCY, "language": "English", "statement_delivery": "Email"},
 }
 
 

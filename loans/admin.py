@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin, messages
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -24,7 +25,7 @@ class LoanRepaymentInline(TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
-    @display(description=_("Amount (KES)"))
+    @display(description=f"Amount ({settings.BANK_CURRENCY})")
     def amount(self, obj):
         return f"{obj.transaction.amount:,.2f}"
 
@@ -52,7 +53,7 @@ class LoanAdmin(ModelAdmin):
     def status_badge(self, obj):
         return obj.status, obj.get_status_display()
 
-    @display(description=_("Outstanding (KES)"))
+    @display(description=f"Outstanding ({settings.BANK_CURRENCY})")
     def outstanding_display(self, obj):
         return f"{obj.outstanding:,.2f}" if obj.status == Loan.Status.ACTIVE else "—"
 

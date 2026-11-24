@@ -9,7 +9,7 @@
             <span class="beneficiary__avatar">{{ b.nickname|slice:":1"|upper }}</span>
             <div class="beneficiary__info">
                 <p>{{ b.nickname }}</p>
-                <small>Kwetu Bank · •••• {{ b.recipient.account_number|slice:"-4:" }}</small>
+                <small>{{ institution.name }} · •••• {{ b.recipient.account_number|slice:"-4:" }}</small>
             </div>
             <button type="button" class="beneficiary__send" data-modal-open="sendMoneyModal"
                     data-recipient="{{ b.recipient.account_number }}" aria-label="Send to {{ b.nickname }}">

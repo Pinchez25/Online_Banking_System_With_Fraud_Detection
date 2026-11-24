@@ -1,5 +1,5 @@
 <footer class="footer">
-    <p>&copy; {{ current_year|default:"2026" }} Jumla Bank. Registered in Kenya.</p>
+    <p>&copy; {{ current_year }} {{ institution.name }}. {{ institution.legal_notice }}</p>
     <nav class="footer__links">
         <a href="{% url 'bank:settings' %}#security">Security centre</a>
         <a href="{% url 'bank:info' 'fees' %}">Fees &amp; charges</a>

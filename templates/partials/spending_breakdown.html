@@ -1,7 +1,8 @@
+{% load money %}
 <section class="panel panel--tight" aria-label="Spending breakdown">
     <div class="panel__head panel__head--tight">
         <h2>Spending this month</h2>
-        <span class="link-sm">KES {{ spending.total|default:0|floatformat:"2g" }}</span>
+        <span class="link-sm">{{ spending.total|default:0|money }}</span>
     </div>
     {% if spending.total %}
     <ul class="breakdown">
