@@ -1,15 +1,13 @@
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
-from django.utils.translation import gettext_lazy as _
-from django.core.validators import MaxValueValidator
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from django.urls import reverse_lazy
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -39,8 +37,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'events.apps.EventsConfig',
     'bank.apps.BankConfig',
     'accounts.apps.AccountsConfig',
+    'fraud.apps.FraudConfig',
     'django_browser_reload',
     'django_user_agents',
     'preventconcurrentlogins',
@@ -48,10 +48,12 @@ INSTALLED_APPS = [
 ]
 
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6380/0")
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
+        "LOCATION": REDIS_URL,
     }
 }
 
@@ -68,6 +70,7 @@ MIDDLEWARE = [
     "django_browser_reload.middleware.BrowserReloadMiddleware",
     'django_user_agents.middleware.UserAgentMiddleware',
     'preventconcurrentlogins.middleware.PreventConcurrentLoginsMiddleware',
+    'accounts.middleware.BlockedAccountMiddleware',
 
 ]
 
@@ -101,13 +104,12 @@ TEMPLATES = [
     },
 ]
 
-MAXIMUM_TRANSACTION_AMOUNT = 1000000
-MINIMUM_TRANSACTION_AMOUNT = 10
-
-MINIMUM_WITHDRAW_AMOUNT = 10
-MAXIMUM_WITHDRAW_AMOUNT = 1000000
-
-MINIMUM_DEPOSIT_AMOUNT = 10
+# (min, max) per transaction type code; the single source of truth for limits.
+TRANSACTION_LIMITS = {
+    "D": (10, 1_000_000),
+    "W": (10, 1_000_000),
+    "T": (10, 1_000_000),
+}
 
 WSGI_APPLICATION = "Online_Banking_System.wsgi.application"
 ASGI_APPLICATION = "Online_Banking_System.asgi.application"
@@ -116,10 +118,7 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [
-                os.getenv(
-                    "CHANNEL_REDIS_URL",
-                    os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
-                ),
+                os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6380/1"),
             ],
         },
     },
@@ -130,21 +129,56 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     "default": dj_database_url.config(
-        default=f"postgresql://{os.getenv('POSTGRES_USER', 'postgres')}:{os.getenv('POSTGRES_PASSWORD', '')}@{os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB', 'bank')}",
+        default=(
+            f"postgresql://{os.getenv('POSTGRES_USER', 'postgres')}:{os.getenv('POSTGRES_PASSWORD', '')}"
+            f"@{os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}"
+            f"/{os.getenv('POSTGRES_DB', 'bank')}"
+        ),
         conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "60")),
     )
 }
 
-LOCAL_MODEL_PATH = (
-    BASE_DIR
-    / "dataset and notebook"
-    / "models"
-    / "fraud_detection_pipeline.joblib"
-)
+# ---------------------------------------------------------------------------
+# Celery: outbox relay, profile maintenance and the model-training DAG.
+# ---------------------------------------------------------------------------
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6380/2")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6380/3")
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TIMEZONE = "Africa/Nairobi"
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ROUTES = {"fraud.tasks.training.*": {"queue": "ml"}}
+CELERY_BEAT_SCHEDULE = {
+    # Safety net: on_commit triggers the relay immediately; this sweep catches
+    # anything left behind when the broker or Kafka was briefly unavailable.
+    "relay-outbox": {"task": "events.tasks.relay_outbox", "schedule": 10.0},
+    "purge-published-outbox": {"task": "events.tasks.purge_published_outbox", "schedule": 3600.0},
+}
 
-FRAUD_MODEL_SOURCE = os.getenv("MODEL_PATH") or LOCAL_MODEL_PATH
-FRAUD_MODEL_PATH = FRAUD_MODEL_SOURCE
-FRAUD_ALERT_EMAIL = ""
+# ---------------------------------------------------------------------------
+# Event bus. "kafka" for the real pipeline; "inline" dispatches handlers
+# in-process after commit (tests, or running without a broker).
+# ---------------------------------------------------------------------------
+EVENT_BUS = os.getenv("EVENT_BUS", "kafka")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
+KAFKA_TOPIC_PARTITIONS = int(os.getenv("KAFKA_TOPIC_PARTITIONS", "3"))
+KAFKA_CONSUMER_MAX_RETRIES = 3
+
+# ---------------------------------------------------------------------------
+# Fraud engine
+# ---------------------------------------------------------------------------
+FRAUD = {
+    "PROFILE_REDIS_URL": os.getenv("FRAUD_PROFILE_REDIS_URL", "redis://127.0.0.1:6380/4"),
+    "DATASET_PATH": BASE_DIR / "ml" / "data" / "paysim.csv",
+    "ARTIFACTS_DIR": BASE_DIR / "ml" / "artifacts",
+    # Final risk score bands -> decision. ML thresholds come from the trained bundle.
+    "REVIEW_THRESHOLD": 0.5,
+    "BLOCK_THRESHOLD": 0.9,
+    "MODEL_CACHE_SECONDS": 60,
+    "ALERT_EMAIL": os.getenv("FRAUD_ALERT_EMAIL", ""),
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -263,10 +297,9 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
-        "bank": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
+        **{
+            app: {"handlers": ["console"], "level": "INFO", "propagate": False}
+            for app in ("bank", "events", "fraud")
         },
     },
 }
@@ -282,3 +315,7 @@ if TESTING:
     EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
     CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    EVENT_BUS = "inline"
+    FRAUD = {**FRAUD, "PROFILE_REDIS_URL": None}  # None -> in-process fakeredis
