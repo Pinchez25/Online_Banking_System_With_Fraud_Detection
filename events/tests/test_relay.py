@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from celery.exceptions import Retry
 from django.test import TestCase
 
 from events import relay
@@ -67,3 +68,30 @@ class OutboxRelayTests(TestCase):
         self.make_events(50)
         with patch("events.relay.get_bus", return_value=_RecordingBus()), self.assertNumQueries(5):
             relay.relay_pending()
+
+
+class _FlakyBus(_RecordingBus):
+    """Fails the first flush (e.g. a broker restart), then works."""
+
+    def __init__(self):
+        super().__init__()
+        self.flushes = 0
+
+    def flush(self):
+        self.flushes += 1
+        if self.flushes == 1:
+            raise PublishError("broker restarting")
+
+
+class RelayRecoveryTests(TestCase):
+    def test_a_transient_publish_failure_heals_without_the_beat_sweep(self):
+        OutboxEvent.objects.bulk_create(OutboxEvent(topic="t", key="k", payload={"n": i}) for i in range(3))
+        bus = _FlakyBus()
+        with patch("events.relay.get_bus", return_value=bus):
+            with self.assertRaises(Retry) as scheduled:  # the failure schedules a retry instead of giving up
+                relay_outbox.apply()
+            self.assertEqual(scheduled.exception.when, 1)
+            self.assertTrue(OutboxEvent.objects.filter(published_at__isnull=True, attempts=1).exists())
+            relay_outbox.apply()  # the retry
+        self.assertEqual(bus.flushes, 2)
+        self.assertFalse(OutboxEvent.objects.filter(published_at__isnull=True).exists())
