@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "celery[redis]>=5.7.0",
     "channels-redis>=4.2,<5",
-    "channels[daphne]>=4.2,<5",
+    "channels[daphne]>=4.3.2,<5",
     "confluent-kafka>=2.10",
     "django>=6.1.1",
     "django-unfold>=0.110.1",
