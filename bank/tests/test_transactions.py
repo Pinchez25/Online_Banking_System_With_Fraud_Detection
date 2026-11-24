@@ -19,6 +19,7 @@ from fraud.handlers import score_transaction
 from fraud.models import FraudModelVersion, RiskAssessment
 from fraud.profiles import ProfileStore
 from fraud.registry import LoadedModel
+from institution.services import format_money
 
 
 class _ConstantModel:
@@ -53,9 +54,9 @@ class RequestTransactionTests(TestCase):
 
     def test_limits_come_from_settings(self):
         with override_settings(TRANSACTION_LIMITS={"D": (100, 200), "W": (10, 10), "T": (10, 10)}):
-            with self.assertRaisesMessage(TransactionRequestError, "minimum amount is KES 100"):
+            with self.assertRaisesMessage(TransactionRequestError, f"minimum amount is {format_money(100, places=0)}"):
                 request_transaction(account=self.sender, txn_type="D", amount="99")
-            with self.assertRaisesMessage(TransactionRequestError, "maximum amount is KES 200"):
+            with self.assertRaisesMessage(TransactionRequestError, f"maximum amount is {format_money(200, places=0)}"):
                 request_transaction(account=self.sender, txn_type="D", amount="201")
         self.assertFalse(OutboxEvent.objects.exists())
 

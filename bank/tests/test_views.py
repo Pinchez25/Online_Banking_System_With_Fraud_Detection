@@ -130,7 +130,7 @@ class NotificationViewTests(TestCase):
             recipient=self.account,
             kind=Notification.Kind.MESSAGE,
             title="Welcome",
-            body="Welcome to Kwetu Bank.",
+            body="Welcome aboard.",
         )
         Notification.objects.create(
             recipient=self.other_account,
@@ -175,7 +175,7 @@ class NotificationViewTests(TestCase):
             recipient=self.account,
             kind=Notification.Kind.MESSAGE,
             title="Welcome",
-            body="Welcome to Kwetu Bank.",
+            body="Welcome aboard.",
         )
         self.client.force_login(self.account)
 
@@ -195,7 +195,7 @@ class NotificationViewTests(TestCase):
             recipient=self.account,
             kind=Notification.Kind.MESSAGE,
             title="Welcome",
-            body="Welcome to Kwetu Bank.",
+            body="Welcome aboard.",
         )
         Notification.objects.create(
             recipient=self.other_account,
