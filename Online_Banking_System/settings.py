@@ -139,9 +139,11 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6380/1"),
-            ],
+            "hosts": [{
+                "address": os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6380/1"),
+                # Must exceed channels_redis' 5s blocking pop, or every idle receive times out.
+                "socket_timeout": 30,
+            }],
         },
     },
 }
