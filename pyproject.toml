@@ -3,8 +3,10 @@ name = "bank-system"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "celery[redis]>=5.5",
     "channels-redis>=4.2,<5",
     "channels[daphne]>=4.2,<5",
+    "confluent-kafka>=2.10",
     "dj-database-url>=3.1.2",
     "django>=6.1.1",
     "django-baton>=5.6.2",
@@ -21,6 +23,7 @@ dependencies = [
     "pandas>=3.0.6",
     "pillow>=12.3.0",
     "psycopg[binary]>=3.3.6",
+    "pyarrow>=20",
     "pydot>=4.0.1",
     "python-dotenv>=1.1.0",
     "redis>=8.1.0",
@@ -31,5 +34,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "fakeredis>=2.41.0",
+    "honcho>=2.0.0",
     "model-bakery>=1.23.3",
 ]
