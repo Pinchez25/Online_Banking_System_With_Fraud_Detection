@@ -1,13 +1,13 @@
 <section class="quick-actions" aria-label="Quick actions">
-    <button class="quick-actions__btn" data-modal-open="sendMoneyModal">
+    <button class="quick-actions__btn" data-modal-open="sendMoneyModal"{% if not account_open %} disabled{% endif %}>
         <span class="icon" data-icon="send"></span>
         <span>Send money</span>
     </button>
-    <button class="quick-actions__btn" data-modal-open="depositModal">
+    <button class="quick-actions__btn" data-modal-open="depositModal"{% if not account_open %} disabled{% endif %}>
         <span class="icon" data-icon="deposit"></span>
         <span>Deposit</span>
     </button>
-    <button class="quick-actions__btn" data-modal-open="withdrawModal">
+    <button class="quick-actions__btn" data-modal-open="withdrawModal"{% if not account_open %} disabled{% endif %}>
         <span class="icon" data-icon="withdraw"></span>
         <span>Withdraw</span>
     </button>

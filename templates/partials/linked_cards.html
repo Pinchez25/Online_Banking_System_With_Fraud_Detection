@@ -1,20 +1,20 @@
-<section class="panel panel--tight" aria-label="Linked cards">
+<section class="panel panel--tight" aria-label="Your cards">
     <div class="panel__head panel__head--tight">
         <h2>Your cards</h2>
-        <a href="#" class="link-sm">Manage</a>
+        {% if account_open %}<a href="{% url 'bank:cards' %}" class="link-sm">Manage</a>{% endif %}
     </div>
     <div class="cards-strip">
         {% for card in cards %}
-        <div class="bank-card bank-card--{{ card.scheme }}">
-            <p class="bank-card__scheme">{{ card.scheme|title }}</p>
+        <div class="bank-card bank-card--visa{% if card.status != 'active' %} bank-card--inactive{% endif %}">
+            <p class="bank-card__scheme">Debit{% if card.status != "active" %} · {{ card.get_status_display }}{% endif %}</p>
             <p class="bank-card__number">{{ card.masked_number }}</p>
             <div class="bank-card__foot">
-                <span>{{ card.holder }}</span>
+                <span>{{ user.get_full_name|default:user.username }}</span>
                 <span>{{ card.expiry }}</span>
             </div>
         </div>
         {% empty %}
-        <p class="panel__empty">No cards linked yet.</p>
+        <p class="panel__empty">{% if account_open %}No cards issued.{% else %}Your debit card is issued when your account opens.{% endif %}</p>
         {% endfor %}
     </div>
 </section>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Cards{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Cards</h1>
+        <p>Freeze a card instantly if it's lost or you don't recognise a payment. Withdrawals need an active card.</p>
+    </div>
+</header>
+
+<div class="card-grid">
+    {% for card in cards %}
+    <section class="panel card-tile">
+        <div class="bank-card bank-card--visa{% if card.status != 'active' %} bank-card--inactive{% endif %}">
+            <p class="bank-card__scheme">Debit</p>
+            <p class="bank-card__number">{{ card.masked_number }}</p>
+            <div class="bank-card__foot">
+                <span>{{ user.get_full_name|default:user.username }}</span>
+                <span>{{ card.expiry }}</span>
+            </div>
+        </div>
+        <dl class="card-tile__meta">
+            <dt>Status</dt><dd><span class="pill pill--{{ card.status }}">{{ card.get_status_display }}</span></dd>
+            <dt>Expires</dt><dd>{{ card.expiry }}</dd>
+            <dt>Issued</dt><dd>{{ card.issued_at|date:"j M Y" }}</dd>
+        </dl>
+        {% if card.status == "active" %}
+        <form method="post" action="{% url 'bank:card-action' card.pk 'freeze' %}">
+            {% csrf_token %}
+            <button class="btn btn--danger" type="submit">Freeze card</button>
+        </form>
+        {% elif card.status == "frozen" %}
+        <form method="post" action="{% url 'bank:card-action' card.pk 'unfreeze' %}">
+            {% csrf_token %}
+            <button class="btn btn--primary" type="submit">Unfreeze card</button>
+        </form>
+        {% endif %}
+    </section>
+    {% empty %}
+    <p class="panel__empty">No cards have been issued to your account.</p>
+    {% endfor %}
+</div>
+{% endblock %}

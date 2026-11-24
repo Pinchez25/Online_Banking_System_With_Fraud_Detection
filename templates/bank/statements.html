@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Statements{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Statements</h1>
+        <p>Monthly statements with opening and closing balances. Only completed transactions are included.</p>
+    </div>
+</header>
+
+<section class="panel">
+    {% if months %}
+    <ul class="row-list">
+        {% for month in months %}
+        <li class="row-list__item">
+            <div>
+                <p class="row-list__title">{{ month|date:"F Y" }}</p>
+                <p class="row-list__meta">{% if forloop.first %}Month to date{% else %}Full month{% endif %}</p>
+            </div>
+            <a class="btn btn--ghost" href="{% url 'bank:statement-download' month.year month.month %}">
+                <span class="icon" data-icon="download"></span> Download PDF
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="panel__empty">Statements are available once your account is open.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% if account_status == "pending" %}
+<div class="banner banner--info" role="status">
+    <strong>Your application is under review.</strong>
+    We're verifying your details. Once approved you'll get an account number and a debit card, and you can start transacting.
+</div>
+{% elif account_status == "rejected" %}
+<div class="banner banner--danger" role="alert">
+    <strong>Your application was not approved.</strong>
+    Check your notifications for details, or contact support.
+</div>
+{% endif %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Terms{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Terms of service</h1>
+        <p>The rules that apply to your Kwetu Bank account.</p>
+    </div>
+</header>
+
+<section class="panel prose">
+    <h2>Opening an account</h2>
+    <p>You apply online with your name and national ID. We verify your identity before opening the account; you can't transact until it's approved. Once open, you receive an account number and a debit card.</p>
+    <h2>Payments</h2>
+    <p>Every deposit, withdrawal and transfer is screened for fraud and approved by the bank before your balance changes. We may block a payment, and temporarily restrict your account, if we suspect fraud.</p>
+    <h2>Your card</h2>
+    <p>Withdrawals need an active debit card. Freeze your card immediately if it's lost or you don't recognise a payment.</p>
+    <h2>Security</h2>
+    <p>You're signed out after {{ idle_minutes }} minutes of inactivity, and signing in on another device ends your previous session. Never share your password.</p>
+    <h2>Loans</h2>
+    <p>Loans are subject to approval. Repayments are fixed monthly instalments, and you may repay early at no extra cost.</p>
+</section>
+{% endblock %}

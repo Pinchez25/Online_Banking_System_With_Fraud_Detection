@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Fees &amp; charges{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Fees &amp; charges</h1>
+        <p>Kwetu Bank charges no fees on deposits, withdrawals or transfers. These limits apply to every request.</p>
+    </div>
+</header>
+
+<section class="panel">
+    <div class="panel__head"><h2>Transaction limits</h2></div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Transaction</th><th class="table__num">Minimum (KES)</th><th class="table__num">Maximum (KES)</th><th class="table__num">Fee</th></tr></thead>
+            <tbody>
+                {% for label, minimum, maximum in limits %}
+                <tr><td>{{ label }}</td><td class="table__num">{{ minimum|floatformat:"0g" }}</td><td class="table__num">{{ maximum|floatformat:"0g" }}</td><td class="table__num">Free</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel__head"><h2>Loans</h2></div>
+    <dl class="facts">
+        <div><dt>Interest rate</dt><dd>{{ loan_rate_percent|floatformat:1 }}% a year, fixed</dd></div>
+        <div><dt>Amount</dt><dd>KES {{ loans.MIN_AMOUNT|floatformat:"0g" }} – {{ loans.MAX_AMOUNT|floatformat:"0g" }}</dd></div>
+        <div><dt>Terms</dt><dd>{{ loans.TERMS_MONTHS|join:", " }} months</dd></div>
+        <div><dt>Early repayment</dt><dd>Free</dd></div>
+    </dl>
+</section>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Loans{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Loans</h1>
+        <p>{{ annual_rate_percent|floatformat:1 }}% a year, fixed monthly instalments, no early repayment fees.</p>
+    </div>
+</header>
+
+<div class="content__split">
+    <div class="content__main">
+        {% if current %}
+        <section class="panel">
+            <div class="panel__head">
+                <div>
+                    <h2>Loan #{{ current.pk }} · KES {{ current.principal|floatformat:"2g" }}</h2>
+                    <p class="panel__subtitle">{{ current.purpose }}</p>
+                </div>
+                <span class="pill pill--{{ current.status }}">{{ current.get_status_display }}</span>
+            </div>
+            <dl class="facts">
+                <div><dt>Monthly instalment</dt><dd>KES {{ current.monthly_instalment|floatformat:"2g" }}</dd></div>
+                <div><dt>Term</dt><dd>{{ current.term_months }} months</dd></div>
+                <div><dt>Total repayable</dt><dd>KES {{ current.total_repayable|floatformat:"2g" }}</dd></div>
+                <div><dt>Repaid</dt><dd>KES {{ current.amount_repaid|floatformat:"2g" }}</dd></div>
+                <div><dt>Outstanding</dt><dd>KES {{ current.outstanding|floatformat:"2g" }}</dd></div>
+                <div><dt>Next instalment</dt><dd>{{ due|date:"j M Y"|default:"After approval" }}</dd></div>
+            </dl>
+            {% if current.status == "active" %}
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="repay">
+                <input type="hidden" name="loan" value="{{ current.pk }}">
+                <label class="field">
+                    <span>{{ repay_form.amount.label }}</span>
+                    {{ repay_form.amount }}
+                </label>
+                <button class="btn btn--primary" type="submit">Make a repayment</button>
+                {% for error in repay_form.non_field_errors %}<p class="field__error">{{ error }}</p>{% endfor %}
+                {% for error in repay_form.amount.errors %}<p class="field__error">{{ error }}</p>{% endfor %}
+            </form>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <section class="panel">
+            <div class="panel__head"><h2>Loan history</h2></div>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr><th>Applied</th><th>Purpose</th><th class="table__num">Amount (KES)</th><th>Term</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for loan in loans %}
+                        <tr>
+                            <td>{{ loan.applied_at|date:"j M Y" }}</td>
+                            <td>{{ loan.purpose }}</td>
+                            <td class="table__num">{{ loan.principal|floatformat:"2g" }}</td>
+                            <td>{{ loan.term_months }} months</td>
+                            <td><span class="pill pill--{{ loan.status }}">{{ loan.get_status_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="table__empty">You haven't applied for a loan yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="content__side">
+        <section class="panel panel--tight">
+            <div class="panel__head panel__head--tight"><h2>Apply for a loan</h2></div>
+            {% if current %}
+            <p class="panel__empty">You can apply again once your current loan is repaid.</p>
+            {% else %}
+            <form method="post" class="stack" data-loan-quote data-annual-rate="{{ annual_rate_percent }}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="apply">
+                {% for error in apply_form.non_field_errors %}<p class="field__error">{{ error }}</p>{% endfor %}
+                {% for field in apply_form %}
+                <label class="field">
+                    <span>{{ field.label }}</span>
+                    {{ field }}
+                    {% for error in field.errors %}<span class="field__error">{{ error }}</span>{% endfor %}
+                </label>
+                {% endfor %}
+                <p class="field__hint">KES {{ limits.MIN_AMOUNT|floatformat:"0g" }} – {{ limits.MAX_AMOUNT|floatformat:"0g" }}.
+                    <span data-loan-quote-output></span></p>
+                <button class="btn btn--primary" type="submit">Submit application</button>
+            </form>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

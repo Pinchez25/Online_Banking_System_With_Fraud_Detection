@@ -3,8 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     wireSidebar();
     wirePopovers();
     wireModals();
-    wireTableSearch();
-    wireCsvExport();
+    wireLoanQuote();
     wireMockForms();
     wireMessages();
     wirePasswordToggles();
@@ -76,11 +75,18 @@ function wireModals() {
     document.querySelectorAll('[data-modal-open]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const modal = document.getElementById(btn.getAttribute('data-modal-open'));
-            if (modal) openModal(modal);
+            if (!modal) return;
+            // Beneficiary "send" buttons pre-fill the recipient.
+            const recipient = modal.querySelector('[data-recipient-input]');
+            if (recipient) recipient.value = btn.dataset.recipient || '';
+            openModal(modal);
+            if (btn.dataset.recipient) modal.querySelector('input[name="amount"]')?.focus();
         });
     });
 
-    document.querySelectorAll('.modal').forEach((modal) => {
+    // The session-timeout dialog must not be dismissible without a decision.
+    const dismissible = document.querySelectorAll('.modal:not([data-session-timeout])');
+    dismissible.forEach((modal) => {
         modal.addEventListener('click', (event) => {
             if (event.target === modal) closeModal(modal);
         });
@@ -91,7 +97,7 @@ function wireModals() {
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
-        document.querySelectorAll('.modal').forEach((modal) => {
+        dismissible.forEach((modal) => {
             modal.hidden = true;
         });
     });
@@ -223,50 +229,27 @@ function wirePasswordToggles() {
     });
 }
 
-function wireTableSearch() {
-    const input = document.getElementById('txnSearch');
-    const table = document.getElementById('txnTable');
-    const noResults = document.getElementById('noResults');
-    if (!input || !table) return;
+// Live monthly-instalment preview on the loan application form.
+function wireLoanQuote() {
+    const form = document.querySelector('[data-loan-quote]');
+    if (!form) return;
+    const output = form.querySelector('[data-loan-quote-output]');
+    const monthlyRate = Number(form.dataset.annualRate) / 100 / 12;
 
-    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    const render = () => {
+        const principal = Number(form.elements.principal.value);
+        const months = Number(form.elements.term_months.value);
+        if (!principal || !months) {
+            output.textContent = '';
+            return;
+        }
+        const instalment = monthlyRate
+            ? (principal * monthlyRate) / (1 - (1 + monthlyRate) ** -months)
+            : principal / months;
+        const format = (value) => value.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        output.textContent = `About KES ${format(instalment)} a month, KES ${format(instalment * months)} in total.`;
+    };
 
-    input.addEventListener('input', () => {
-        const term = input.value.trim().toLowerCase();
-        let visibleCount = 0;
-
-        rows.forEach((row) => {
-            const matches = row.textContent.toLowerCase().includes(term);
-            row.hidden = !matches;
-            if (matches) visibleCount += 1;
-        });
-
-        if (noResults) noResults.hidden = visibleCount !== 0 || rows.length === 0;
-    });
-}
-
-// Demo-only: builds a CSV client-side from the currently visible rows.
-function wireCsvExport() {
-    const button = document.getElementById('exportCsv');
-    const table = document.getElementById('txnTable');
-    if (!button || !table) return;
-
-    button.addEventListener('click', () => {
-        const headerCells = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent.trim());
-        const rows = Array.from(table.querySelectorAll('tbody tr')).filter((row) => !row.hidden);
-
-        const csvLines = [headerCells.join(',')];
-        rows.forEach((row) => {
-            const cells = Array.from(row.querySelectorAll('td')).map((td) => `"${td.textContent.trim().replace(/"/g, '""')}"`);
-            csvLines.push(cells.join(','));
-        });
-
-        const blob = new Blob([csvLines.join('\n')], {type: 'text/csv;charset=utf-8;'});
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'transaction-history.csv';
-        link.click();
-        URL.revokeObjectURL(url);
-    });
+    form.addEventListener('input', render);
+    render();
 }

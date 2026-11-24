@@ -1,20 +1,23 @@
 <section class="panel panel--tight" aria-label="Beneficiaries">
     <div class="panel__head panel__head--tight">
         <h2>Send again</h2>
-        <a href="#" class="link-sm">All beneficiaries</a>
+        {% if account_open %}<a href="{% url 'bank:beneficiaries' %}" class="link-sm">All beneficiaries</a>{% endif %}
     </div>
     <ul class="beneficiary-list">
         {% for b in beneficiaries %}
         <li class="beneficiary">
-            <span class="beneficiary__avatar">{{ b.name|slice:":1" }}</span>
+            <span class="beneficiary__avatar">{{ b.nickname|slice:":1"|upper }}</span>
             <div class="beneficiary__info">
-                <p>{{ b.name }}</p>
-                <small>{{ b.bank }} · {{ b.masked_account }}</small>
+                <p>{{ b.nickname }}</p>
+                <small>Kwetu Bank · •••• {{ b.recipient.account_number|slice:"-4:" }}</small>
             </div>
-            <button class="beneficiary__send" data-modal-open="sendMoneyModal" aria-label="Send to {{ b.name }}">
+            <button type="button" class="beneficiary__send" data-modal-open="sendMoneyModal"
+                    data-recipient="{{ b.recipient.account_number }}" aria-label="Send to {{ b.nickname }}">
                 <span class="icon" data-icon="send"></span>
             </button>
         </li>
+        {% empty %}
+        <li class="panel__empty">{% if account_open %}People you save as beneficiaries appear here.{% else %}Available once your account opens.{% endif %}</li>
         {% endfor %}
     </ul>
 </section>

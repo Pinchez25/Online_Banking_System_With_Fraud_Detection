@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Beneficiaries{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Beneficiaries</h1>
+        <p>People you pay regularly. Send to them in one tap from the dashboard.</p>
+    </div>
+</header>
+
+<div class="content__split">
+    <div class="content__main">
+        <section class="panel">
+            <ul class="row-list">
+                {% for b in beneficiaries %}
+                <li class="row-list__item">
+                    <div class="beneficiary">
+                        <span class="beneficiary__avatar">{{ b.nickname|slice:":1"|upper }}</span>
+                        <div class="beneficiary__info">
+                            <p>{{ b.nickname }}</p>
+                            <small class="table__mono">{{ b.recipient.account_number }}</small>
+                        </div>
+                    </div>
+                    <div class="row-list__actions">
+                        <button type="button" class="btn btn--primary" data-modal-open="sendMoneyModal"
+                                data-recipient="{{ b.recipient.account_number }}">Send</button>
+                        <form method="post" action="{% url 'bank:beneficiary-delete' b.pk %}">
+                            {% csrf_token %}
+                            <button class="btn btn--ghost" type="submit" aria-label="Remove {{ b.nickname }}">Remove</button>
+                        </form>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="panel__empty">No beneficiaries yet. Add one, or tick "Save as a beneficiary" when sending money.</li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+    <div class="content__side">
+        <section class="panel panel--tight">
+            <div class="panel__head panel__head--tight"><h2>Add a beneficiary</h2></div>
+            <form method="post" class="stack">
+                {% csrf_token %}
+                {% for field in form %}
+                <label class="field">
+                    <span>{{ field.label }}</span>
+                    {{ field }}
+                    {% for error in field.errors %}<span class="field__error">{{ error }}</span>{% endfor %}
+                </label>
+                {% endfor %}
+                <button class="btn btn--primary" type="submit">Add beneficiary</button>
+            </form>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+    {% include "partials/modals/money_modal.html" with kind="send" modal_id="sendMoneyModal" title="Send money" icon="send" cta="Send money" %}
+{% endblock %}

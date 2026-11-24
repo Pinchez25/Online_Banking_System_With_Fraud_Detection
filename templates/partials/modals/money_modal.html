@@ -20,8 +20,8 @@ kind is one of: send, deposit, withdraw
             {% csrf_token %}
             {% if kind == "send" %}
                 <label class="field">
-                    <span>Recipient credit card</span>
-                    <input type="text" name="recipient" placeholder="Enter the recipient credit card number" required>
+                    <span>Recipient account number</span>
+                    <input type="text" name="recipient" inputmode="numeric" placeholder="e.g. 012345678901" data-recipient-input required>
                 </label>
             {% endif %}
 
@@ -31,10 +31,14 @@ kind is one of: send, deposit, withdraw
             </label>
 
             {% if kind == "send" %}
-                <p class="field__hint">Every request is screened for fraud in real time, then sent for bank approval.</p>
-            {% else %}
-                <p class="field__hint">Every request is screened for fraud in real time, then sent for bank approval.</p>
+                <label class="field field--checkbox">
+                    <input type="checkbox" name="save_beneficiary" value="on">
+                    <span>Save as a beneficiary</span>
+                </label>
+            {% elif kind == "withdraw" %}
+                <p class="field__hint">Withdrawals are made against your active debit card.</p>
             {% endif %}
+            <p class="field__hint">Every request is screened for fraud in real time, then sent for bank approval.</p>
 
             <div class="modal__actions">
                 <button type="button" class="btn btn--ghost" data-modal-close>Cancel</button>

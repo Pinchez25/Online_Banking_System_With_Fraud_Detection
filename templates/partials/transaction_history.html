@@ -1,22 +1,16 @@
-<section class="panel" aria-label="Transaction history">
+<section class="panel" aria-label="Recent transactions">
     <div class="panel__head">
         <div>
-            <h2>Transaction history</h2>
-            <p class="panel__subtitle">Your {{ transactions|length }} most recent transactions</p>
+            <h2>Recent transactions</h2>
+            <p class="panel__subtitle">Your latest activity, sent and received</p>
         </div>
         <div class="panel__tools">
-            <label class="search" for="txnSearch">
-                <span class="icon" data-icon="search"></span>
-                <input type="search" id="txnSearch" placeholder="Search by reference, name or amount" autocomplete="off">
-            </label>
-            <button class="btn btn--ghost" id="exportCsv" type="button">
-                <span class="icon" data-icon="download"></span> Export
-            </button>
+            <a class="btn btn--ghost" href="{% url 'bank:transactions' %}">View all &amp; export</a>
         </div>
     </div>
 
     <div class="table-wrap">
-        <table class="table" id="txnTable">
+        <table class="table">
             <thead>
                 <tr>
                     <th>Date</th>
@@ -28,26 +22,8 @@
                 </tr>
             </thead>
             <tbody>
-                {% for txn in transactions %}
-                <tr>
-                    <td>{{ txn.date }}</td>
-                    <td>{{ txn.description }}</td>
-                    <td class="table__mono">{{ txn.reference }}</td>
-                    <td><span class="pill pill--{{ txn.type|lower }}">{{ txn.type }}</span></td>
-                    <td class="table__num {% if txn.direction == 'credit' %}is-credit{% else %}is-debit{% endif %}">
-                        {% if txn.direction == 'credit' %}+{% else %}-{% endif %}{{ txn.amount }}
-                    </td>
-                    <td><span class="pill pill--{{ txn.status }}">{{ txn.status|capfirst }}</span></td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="6" class="table__empty">No transactions yet.</td></tr>
-                {% endfor %}
+                {% include "partials/transaction_rows.html" with rows=transactions %}
             </tbody>
         </table>
-        <p class="table__no-results" id="noResults" hidden>No transactions match your search.</p>
-    </div>
-
-    <div class="panel__foot">
-        <button class="btn btn--text" type="button">Load more</button>
     </div>
 </section>
