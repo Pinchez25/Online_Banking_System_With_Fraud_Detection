@@ -18,13 +18,13 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Online_Banking_System.settings"
 
 django_asgi_app = get_asgi_application()
 
-from bank.routing import websocket_urlpatterns
+from bank.routing import websocket_urlpatterns  # noqa: E402  (needs Django set up first)
 
 application = ProtocolTypeRouter(
-	{
-		"http": django_asgi_app,
-		"websocket": AllowedHostsOriginValidator(
-			AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
-		),
-	}
+    {
+        "http": django_asgi_app,
+        "websocket": AllowedHostsOriginValidator(
+            AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+        ),
+    }
 )

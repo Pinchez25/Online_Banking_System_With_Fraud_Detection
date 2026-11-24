@@ -1,11 +1,12 @@
 import uuid
 
-from creditcards.models import CardNumberField
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+from accounts.validators import validate_card_number
 
 USER_TYPES = (
     ("individual", "Individual"),
@@ -30,9 +31,12 @@ class Account(AbstractUser):
         choices=ACCOUNT_TYPES,
         default="savings",
     )
-    cc_number = CardNumberField(
+    cc_number = models.CharField(
         _("Credit Card"),
-        help_text=_("Customer credit card number"),
+        max_length=19,
+        help_text=_("Customer credit card number (digits only)"),
+        validators=[validate_card_number],
+        unique=True,  # identifies the recipient of a transfer
         null=True,
         blank=True,
     )
@@ -59,6 +63,8 @@ class Account(AbstractUser):
         default=0,
     )
     is_blocked = models.BooleanField(_("Blocked"), default=False)
+    session_key = models.CharField(max_length=40, blank=True, default="", editable=False,
+                                   help_text=_("The only session allowed to stay signed in."))
     deactivated_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     USERNAME_FIELD = 'email'

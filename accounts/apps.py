@@ -6,4 +6,4 @@ class AccountsConfig(AppConfig):
     name = "accounts"
 
     def ready(self):
-        import accounts.signals
+        from accounts import sessions, signals  # noqa: F401  (register signal receivers)

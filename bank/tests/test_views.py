@@ -1,13 +1,9 @@
-from unittest.mock import patch
-
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from bank.models import Notification, Transaction, TransactionLog
-from bank.services.fraud import FraudAssessment
-from bank.services.transfers import FraudModelError
-from bank.ml.detector import FraudResult
+from bank.models import Notification, Transaction
+from bank.tests.factories import make_account
 
 
 class TestBankViews(TestCase):
@@ -42,7 +38,7 @@ class TestBankViews(TestCase):
         self.assertIn('transactions', response.context)
         self.assertIn('cards', response.context)
 
-    def test_deposit_creates_pending_transaction(self):
+    def test_deposit_creates_screening_transaction(self):
         account = get_user_model().objects.create_user(
             username='depositor', password='password123', email='depositor@example.com', national_id=10003,
             bank_balances=100,
@@ -55,9 +51,9 @@ class TestBankViews(TestCase):
         self.assertRedirects(response, reverse('bank:dashboard'))
         self.assertEqual(account.bank_balances, 100)
         transaction = Transaction.objects.get(account=account, type='D')
-        self.assertEqual(transaction.status, Transaction.Status.PENDING)
+        self.assertEqual(transaction.status, Transaction.Status.SCREENING)
 
-    def test_withdrawal_creates_pending_transaction(self):
+    def test_withdrawal_creates_screening_transaction(self):
         account = get_user_model().objects.create_user(
             username='withdrawer', password='password123', email='withdrawer@example.com', national_id=10004,
             bank_balances=100,
@@ -70,74 +66,46 @@ class TestBankViews(TestCase):
         self.assertRedirects(response, reverse('bank:dashboard'))
         self.assertEqual(account.bank_balances, 100)
         transaction = Transaction.objects.get(account=account, type='W')
-        self.assertEqual(transaction.status, Transaction.Status.PENDING)
+        self.assertEqual(transaction.status, Transaction.Status.SCREENING)
 
-    @patch('bank.services.transfers.FraudService.assess_transfer')
-    def test_fraudulent_transfer_is_blocked_without_recording_success(self, assess_transfer):
-        assess_transfer.return_value = FraudAssessment(
-            result=FraudResult(
-                probability=0.95,
-                threshold=0.5,
-                model_version="test",
-                model_name="test",
-            ),
-            assessed_at=None,
-        )
-        account_model = get_user_model()
-        sender = account_model.objects.create_user(
-            username='sender', password='password123', email='sender@example.com', national_id=10001,
-            bank_balances=100, cc_number='4242424242424242',
-        )
-        recipient = account_model.objects.create_user(
-            username='recipient', password='password123', email='recipient@example.com', national_id=10002,
-            bank_balances=50, cc_number='4111111111111111',
-        )
+    def test_transfer_is_screened_then_awaits_approval(self):
+        sender = make_account(balance="100", cc_number="4242424242424242")
+        recipient = make_account(balance="50", cc_number="4111111111111111")
         self.client.force_login(sender)
 
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(reverse('bank:send-money'), {
-                'type': 'T',
-                'amount': '25.00',
-                'recipient': str(recipient.cc_number),
-            })
+            response = self.client.post(reverse("bank:send-money"), {"amount": "25.00", "recipient": "4111 1111 1111 1111"})
 
-        sender.refresh_from_db()
-        recipient.refresh_from_db()
-        self.assertRedirects(response, reverse('accounts:account-blocked'))
-        self.assertTrue(sender.is_blocked)
-        self.assertEqual(sender.bank_balances, 100)
-        self.assertEqual(recipient.bank_balances, 50)
-        self.assertFalse(Transaction.objects.exists())
-        self.assertEqual(TransactionLog.objects.filter(is_fraud=True).count(), 1)
+        self.assertRedirects(response, reverse("bank:dashboard"))
+        transaction = Transaction.objects.get(account=sender, recipient=recipient, type="T")
+        self.assertEqual(transaction.status, Transaction.Status.PENDING)
+        self.assertTrue(hasattr(transaction, "risk_assessment"))
 
-    @patch('bank.services.transfers.FraudService.assess_transfer', side_effect=FraudModelError)
-    def test_transfer_is_not_processed_when_fraud_screening_is_unavailable(self, assess_transfer):
-        account_model = get_user_model()
-        sender = account_model.objects.create_user(
-            username='screening-sender', password='password123', email='screening-sender@example.com',
-            national_id=10005, bank_balances=100, cc_number='4242424242424242',
-        )
-        recipient = account_model.objects.create_user(
-            username='screening-recipient', password='password123', email='screening-recipient@example.com',
-            national_id=10006, bank_balances=50, cc_number='4111111111111111',
-        )
+    def test_unknown_recipient_card_is_a_form_error(self):
+        sender = make_account(balance="100")
         self.client.force_login(sender)
-
-        response = self.client.post(reverse('bank:send-money'), {
-            'type': 'T',
-            'amount': '25.00',
-            'recipient': str(recipient.cc_number),
-        })
-
-        sender.refresh_from_db()
-        recipient.refresh_from_db()
+        response = self.client.post(reverse("bank:send-money"), {"amount": "25.00", "recipient": "4000000000000002"})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Fraud screening is unavailable')
-        self.assertEqual(sender.bank_balances, 100)
-        self.assertEqual(recipient.bank_balances, 50)
+        self.assertContains(response, "No account uses this card number.")
         self.assertFalse(Transaction.objects.exists())
-        self.assertFalse(TransactionLog.objects.exists())
-        assess_transfer.assert_called_once()
+
+    def test_blocked_account_is_logged_out_on_next_request(self):
+        account = make_account(balance="100", is_blocked=True)
+        self.client.force_login(account)
+        response = self.client.get(reverse("bank:dashboard"))
+        self.assertRedirects(response, reverse("accounts:account-blocked"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_dashboard_lists_incoming_transfers_as_credits(self):
+        sender, recipient = make_account(balance="100"), make_account(balance="0")
+        Transaction.objects.create(account=sender, recipient=recipient, type="T", amount=10,
+                                   status=Transaction.Status.APPROVED)
+        self.client.force_login(recipient)
+        with self.assertNumQueries(9):
+            response = self.client.get(reverse("bank:dashboard"))
+        [row] = response.context["transactions"]
+        self.assertEqual(row.direction, "credit")
+        self.assertEqual(row.description, f"Transfer from {sender.username}")
 
 
 class NotificationViewTests(TestCase):

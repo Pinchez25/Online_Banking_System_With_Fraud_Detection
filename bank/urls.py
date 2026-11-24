@@ -1,7 +1,8 @@
 from django.urls import path
+
 from .views import (
-    HomeView,
     DepositMoneyView,
+    HomeView,
     NotificationCenterView,
     SendMoneyView,
     WithdrawMoneyView,
@@ -16,7 +17,6 @@ urlpatterns = [
     path('deposit/', DepositMoneyView.as_view(), name="deposit-money"),
     path('withdraw/', WithdrawMoneyView.as_view(), name="withdraw-money"),
     path('send/', SendMoneyView.as_view(), name='send-money'),
-    # path('transaction-history/', TransactionHistoryView.as_view(), name="history")
     path("settings/", settings_view, name="settings"),
     path("notifications/", NotificationCenterView.as_view(), name="notification-center"),
     path("notifications/read-all/", mark_all_notifications_read, name="notifications-read-all"),

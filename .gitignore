@@ -175,3 +175,7 @@ cython_debug/
 .idea/
 
 # End of https://www.toptal.com/developers/gitignore/api/django
+
+# ML datasets and trained artifacts (reproducible via `manage.py train_fraud_model`)
+ml/data/
+ml/artifacts/

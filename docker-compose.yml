@@ -1,3 +1,5 @@
+name: bank_system
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -17,16 +19,67 @@ services:
       timeout: 5s
       retries: 10
 
-#  redis:
-#    image: redis:7-alpine
-#    restart: unless-stopped
-#    ports:
-#      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
-#    healthcheck:
-#      test: ["CMD", "redis-cli", "ping"]
-#      interval: 5s
-#      timeout: 3s
-#      retries: 10
+  # Cache, Channels layer, Celery broker/results and the fraud behavioural-profile store.
+  # Exposed on 6380 so it never collides with a Redis already running on the host.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    container_name: bank_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Single-node KRaft broker (no ZooKeeper). Host clients use localhost:9094;
+  # containers use kafka:29092.
+  kafka:
+    image: apache/kafka:4.3.1
+    restart: unless-stopped
+    container_name: bank_kafka
+    ports:
+      - "127.0.0.1:${KAFKA_PORT:-9094}:9094"
+    environment:
+      CLUSTER_ID: "kwetu-bank-kraft-cluster-01"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:${KAFKA_PORT:-9094}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 15s
+
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.3.0
+    restart: unless-stopped
+    container_name: bank_kafka_ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${KAFKA_UI_PORT:-8089}:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: kwetu-bank
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
   mailpit:
     image: axllent/mailpit:v1.31
@@ -45,3 +98,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
+  kafka_data:

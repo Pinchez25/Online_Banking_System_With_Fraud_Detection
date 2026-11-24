@@ -1,6 +1,7 @@
-from ..models import Transaction
 from django.test import TestCase
 from model_bakery import baker
+
+from ..models import Transaction
 
 
 class TestTransactionModel(TestCase):

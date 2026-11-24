@@ -1,6 +1,5 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
-from django.contrib import messages
 from django.utils.translation import ngettext
 
 from .forms import AccountRegistrationForm
@@ -42,6 +41,5 @@ class AccountAdmin(UserAdmin):
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ['first_name', 'last_name', 'phone_number', 'address', 'city']
     list_filter = ['account']
-    # search_fields = ['first_name', 'last_name', 'phone_number', 'address', 'city']
     search_fields = ("account__username", "account__email", "first_name", "last_name")
     list_per_page = 25

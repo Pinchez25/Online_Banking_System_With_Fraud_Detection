@@ -1,11 +1,11 @@
 import logging
 
-from PIL import Image, ImageOps
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django_user_agents.utils import get_user_agent
+from PIL import Image, ImageOps
+from user_agents import parse as parse_user_agent
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def get_login_agent(request) -> None:
     account = request.user
 
     try:
-        user_agent = get_user_agent(request)
+        user_agent = parse_user_agent(request.headers.get("User-Agent", ""))
     except Exception:
         logger.exception("Failed to parse user agent for account %s", account.pk)
         return

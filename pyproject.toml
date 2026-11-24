@@ -3,33 +3,27 @@ name = "bank-system"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "celery[redis]>=5.5",
     "channels-redis>=4.2,<5",
     "channels[daphne]>=4.2,<5",
-    "dj-database-url>=3.1.2",
+    "confluent-kafka>=2.10",
     "django>=6.1.1",
     "django-baton>=5.6.2",
     "django-browser-reload>=1.21.0",
-    "django-credit-cards>=0.4.1",
-    "django-ipware>=8.0.0",
-    "django-preventconcurrentlogins>=0.8.2",
-    "django-redis>=7.0.0",
-    "django-user-agents>=0.4.0",
-    "gunicorn>=26.2.0",
-    "imbalanced-learn>=0.14.2",
-    "ipykernel>=7.3.0",
-    "matplotlib>=3.11.2",
     "pandas>=3.0.6",
-    "pillow>=12.3.0",
+    "pillow>=13.0",
     "psycopg[binary]>=3.3.6",
-    "pydot>=4.0.1",
+    "pyarrow>=20",
     "python-dotenv>=1.1.0",
     "redis>=8.1.0",
     "scikit-learn>=1.9.1",
     "user-agents>=2.2.0",
-    "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
 dev = [
+    "fakeredis>=2.41.0",
+    "honcho>=2.0.0",
     "model-bakery>=1.23.3",
+    "ruff>=0.17.6",
 ]

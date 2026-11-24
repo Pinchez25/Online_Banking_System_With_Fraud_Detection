@@ -1,8 +1,9 @@
 from django.contrib import admin, messages
-from django.utils.translation import gettext_lazy as _, ngettext
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
-from .models import Notification, Transaction, TransactionLog
-from .services.service import (
+from .models import Notification, Transaction
+from .services.approval import (
     approve_batch,
     approve_transaction,
     reject_batch,
@@ -27,11 +28,13 @@ class TransactionAdmin(admin.ModelAdmin):
         "type",
         "amount",
         "status",
+        "risk_decision",
+        "risk_score",
         "approved_by",
         "approved_at",
         "date",
     )
-    list_filter = ("status", "type", "date")
+    list_filter = ("status", "risk_assessment__decision", "type", "date")
     search_fields = (
         "transaction_id",
         "account__username",
@@ -40,8 +43,18 @@ class TransactionAdmin(admin.ModelAdmin):
         "recipient__email",
     )
     readonly_fields = ("transaction_id", "date", "approved_at", "approved_by")
-    list_select_related = ("account", "recipient", "approved_by")
+    list_select_related = ("account", "recipient", "approved_by", "risk_assessment")
     actions = ["approve_selected_transactions", "reject_selected_transactions"]
+
+    @admin.display(description=_("Risk"), ordering="risk_assessment__decision")
+    def risk_decision(self, obj):
+        assessment = getattr(obj, "risk_assessment", None)
+        return assessment.get_decision_display() if assessment else "—"
+
+    @admin.display(description=_("Risk score"), ordering="risk_assessment__risk_score")
+    def risk_score(self, obj):
+        assessment = getattr(obj, "risk_assessment", None)
+        return f"{assessment.risk_score:.2f}" if assessment else "—"
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(self.readonly_fields)
@@ -138,26 +151,3 @@ class TransactionAdmin(admin.ModelAdmin):
                     self.message_user(request, str(e), level=messages.ERROR)
                     return
         super().save_model(request, obj, form, change)
-
-
-@admin.register(TransactionLog)
-class TransactionLogAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "sender_account",
-        "receiver_account",
-        "amount",
-        "is_fraud",
-        "fraud_probability",
-        "fraud_model_version",
-        "date",
-    )
-    list_filter = ("is_fraud", "fraud_model_version")
-    search_fields = (
-        "sender_account__username",
-        "receiver_account__username",
-        "sender_account__email",
-        "receiver_account__email",
-    )
-    readonly_fields = ("date",)
-    list_select_related = ("sender_account", "receiver_account")

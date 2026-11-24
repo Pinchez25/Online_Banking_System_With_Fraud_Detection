@@ -10,13 +10,7 @@
                         <div class="p-5">
                             <div class="text-center">
                                 <h1 class="h4 text-dark mb-4">
-                                    {% if request.path == '/send/' %}
-                                        Send Money
-                                    {% elif request.path == '/deposit/' %}
-                                        Deposit Money
-                                    {% elif request.path == '/withdraw/' %}
-                                        Withdraw Money
-                                    {% endif %}
+                                    {{ title }}
                                 </h1>
                                 {#                                {{ request.user.is_superuser }}#}
                             </div>

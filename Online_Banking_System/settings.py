@@ -1,14 +1,11 @@
 import os
-from pathlib import Path
+import sys
 from datetime import datetime
-import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
-from django.utils.translation import gettext_lazy as _
-from django.core.validators import MaxValueValidator
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from django.urls import reverse_lazy
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -38,23 +35,23 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'events.apps.EventsConfig',
     'bank.apps.BankConfig',
     'accounts.apps.AccountsConfig',
+    'fraud.apps.FraudConfig',
     'django_browser_reload',
-    'django_user_agents',
-    'preventconcurrentlogins',
     'baton.autodiscover',
 ]
 
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6380/0")
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
+        "LOCATION": REDIS_URL,
     }
 }
-
-USER_AGENTS_CACHE = 'default'
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -65,19 +62,17 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
-    'django_user_agents.middleware.UserAgentMiddleware',
-    'preventconcurrentlogins.middleware.PreventConcurrentLoginsMiddleware',
+    'accounts.middleware.BlockedAccountMiddleware',
 
 ]
 
 ROOT_URLCONF = "Online_Banking_System.urls"
 
+# Sliding 5-minute inactivity timeout: each request re-saves the session,
+# pushing its expiry forward.
 SESSION_EXPIRE_SECONDS = 300
-SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True
-SESSION_TIMEOUT_REDIRECT = reverse_lazy('accounts:login')
-# Keep the authentication cookie when the browser suspends or the user closes
-# a tab. The timeout middleware still expires inactive sessions after the
-# configured inactivity period.
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_AGE = SESSION_EXPIRE_SECONDS
 
@@ -100,13 +95,12 @@ TEMPLATES = [
     },
 ]
 
-MAXIMUM_TRANSACTION_AMOUNT = 1000000
-MINIMUM_TRANSACTION_AMOUNT = 10
-
-MINIMUM_WITHDRAW_AMOUNT = 10
-MAXIMUM_WITHDRAW_AMOUNT = 1000000
-
-MINIMUM_DEPOSIT_AMOUNT = 10
+# (min, max) amount per transaction type.
+TRANSACTION_LIMITS = {
+    "D": (10, 1_000_000),
+    "W": (10, 1_000_000),
+    "T": (10, 1_000_000),
+}
 
 WSGI_APPLICATION = "Online_Banking_System.wsgi.application"
 ASGI_APPLICATION = "Online_Banking_System.asgi.application"
@@ -115,10 +109,7 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [
-                os.getenv(
-                    "CHANNEL_REDIS_URL",
-                    os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
-                ),
+                os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6380/1"),
             ],
         },
     },
@@ -128,22 +119,59 @@ CHANNEL_LAYERS = {
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=f"postgresql://{os.getenv('POSTGRES_USER', 'postgres')}:{os.getenv('POSTGRES_PASSWORD', '')}@{os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB', 'bank')}",
-        conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "60")),
-    )
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB", "bank"),
+        "USER": os.getenv("POSTGRES_USER", "postgres"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
+    }
 }
 
-LOCAL_MODEL_PATH = (
-    BASE_DIR
-    / "dataset and notebook"
-    / "models"
-    / "fraud_detection_pipeline.joblib"
-)
+# ---------------------------------------------------------------------------
+# Celery: outbox relay, profile maintenance and the model-training DAG.
+# ---------------------------------------------------------------------------
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6380/2")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6380/3")
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TIMEZONE = "Africa/Nairobi"
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ROUTES = {"fraud.tasks.training.*": {"queue": "ml"}}
+CELERY_BEAT_SCHEDULE = {
+    # Safety net: on_commit triggers the relay immediately; this sweep catches
+    # anything left behind when the broker or Kafka was briefly unavailable.
+    "relay-outbox": {"task": "events.tasks.relay_outbox", "schedule": 10.0},
+    "purge-published-outbox": {"task": "events.tasks.purge_published_outbox", "schedule": 3600.0},
+}
 
-FRAUD_MODEL_SOURCE = os.getenv("MODEL_PATH") or LOCAL_MODEL_PATH
-FRAUD_MODEL_PATH = FRAUD_MODEL_SOURCE
-FRAUD_ALERT_EMAIL = ""
+# ---------------------------------------------------------------------------
+# Event bus. "kafka" for the real pipeline; "inline" dispatches handlers
+# in-process after commit (tests, or running without a broker).
+# ---------------------------------------------------------------------------
+EVENT_BUS = os.getenv("EVENT_BUS", "kafka")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
+KAFKA_TOPIC_PARTITIONS = int(os.getenv("KAFKA_TOPIC_PARTITIONS", "3"))
+KAFKA_CONSUMER_MAX_RETRIES = 3
+
+# ---------------------------------------------------------------------------
+# Fraud engine
+# ---------------------------------------------------------------------------
+FRAUD = {
+    "PROFILE_REDIS_URL": os.getenv("FRAUD_PROFILE_REDIS_URL", "redis://127.0.0.1:6380/4"),
+    "DATASET_PATH": BASE_DIR / "ml" / "data" / "paysim.csv",
+    "ARTIFACTS_DIR": BASE_DIR / "ml" / "artifacts",
+    # Final risk score bands -> decision. ML thresholds come from the trained bundle.
+    "REVIEW_THRESHOLD": 0.5,
+    "BLOCK_THRESHOLD": 0.9,
+    "MODEL_CACHE_SECONDS": 60,
+    "ALERT_EMAIL": os.getenv("FRAUD_ALERT_EMAIL", ""),
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -262,10 +290,25 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
-        "bank": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
+        **{
+            app: {"handlers": ["console"], "level": "INFO", "propagate": False}
+            for app in ("bank", "events", "fraud")
         },
     },
 }
+
+# ---------------------------------------------------------------------------
+# Test-run overrides: keep the suite fast and hermetic (no SMTP/Redis needed).
+# PBKDF2's 1.5M iterations cost ~1s per create_user; MD5 is fine for fixtures.
+# ---------------------------------------------------------------------------
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+
+if TESTING:
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    EVENT_BUS = "inline"
+    FRAUD = {**FRAUD, "PROFILE_REDIS_URL": None}  # None -> in-process fakeredis

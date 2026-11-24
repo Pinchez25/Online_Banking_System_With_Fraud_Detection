@@ -6,4 +6,4 @@ class BankConfig(AppConfig):
     name = "bank"
 
     def ready(self):
-        import bank.signals
+        from bank import handlers, signals  # noqa: F401  (register receivers and event subscriptions)
