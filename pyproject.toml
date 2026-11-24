@@ -9,6 +9,7 @@ dependencies = [
     "confluent-kafka>=2.10",
     "django>=6.1.1",
     "django-unfold>=0.110.1",
+    "fpdf2>=2.8",
     "pandas>=3.0.6",
     "pillow>=13.0",
     "psycopg[binary]>=3.3.6",
@@ -21,6 +22,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "celery-types>=0.26.0",
     "fakeredis>=2.41.0",
     "honcho>=2.0.0",
     "model-bakery>=1.23.3",
