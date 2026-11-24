@@ -130,6 +130,11 @@ LOANS = {
     "MAX_AMOUNT": 500_000,
 }
 
+# TODO: remove before any real deployment. Lets staff approve their own transactions,
+# loans and account applications so a single-user test install can exercise approvals.
+# Always off when DEBUG is off.
+ALLOW_SELF_APPROVAL = DEBUG and os.getenv("ALLOW_SELF_APPROVAL", "false").lower() in {"1", "true", "yes", "on"}
+
 TRANSACTIONS_PER_PAGE = 25
 EXPORT_PDF_MAX_ROWS = 5_000
 
@@ -139,9 +144,11 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6380/1"),
-            ],
+            "hosts": [{
+                "address": os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6380/1"),
+                # Must exceed channels_redis' 5s blocking pop, or every idle receive times out.
+                "socket_timeout": 30,
+            }],
         },
     },
 }
@@ -349,3 +356,4 @@ if TESTING:
     CELERY_TASK_EAGER_PROPAGATES = True
     EVENT_BUS = "inline"
     TEST_RUNNER = "Online_Banking_System.test_runner.TestRunner"
+    ALLOW_SELF_APPROVAL = False  # tests must not depend on a developer's local toggle

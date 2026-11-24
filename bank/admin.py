@@ -11,7 +11,7 @@ from unfold.enums import ActionVariant
 from fraud.models import RiskAssessment
 
 from .models import Beneficiary, Card, Notification, Transaction
-from .services.approval import approve_batch, approve_transaction, reject_batch
+from .services.approval import approve_batch, reject_batch
 
 STATUS_COLOURS = {
     Transaction.Status.SCREENING: "info",
@@ -45,11 +45,8 @@ class TransactionApprovalMixin:
             self.message_user(request, ngettext(
                 "%d transaction was successfully approved.", "%d transactions were successfully approved.",
                 result.approved_count) % result.approved_count, messages.SUCCESS)
-        if result.error_count:
-            self.message_user(request, ngettext(
-                "%d transaction could not be approved due to validation errors.",
-                "%d transactions could not be approved due to validation errors.",
-                result.error_count) % result.error_count, messages.WARNING)
+        for reference, reason in result.errors:
+            self.message_user(request, f"{reference} was not approved: {reason}", messages.WARNING)
         if not result.approved_count and not result.error_count:
             self.message_user(request, _("No pending transactions were selected for approval."), messages.INFO)
 
@@ -144,18 +141,20 @@ class TransactionAdmin(TransactionApprovalMixin, ModelAdmin):
         self._reject(request, Transaction.objects.filter(pk=object_id))
         return redirect(request.headers.get("referer") or reverse("admin:bank_transaction_changelist"))
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        status = form.base_fields.get("status")
+        if obj is not None and status is not None:  # offer only the moves the status graph allows
+            reachable = {obj.status, *obj.allowed_next_statuses()}
+            status.choices = [(value, label) for value, label in Transaction.Status.choices if value in reachable]
+        return form
+
     def save_model(self, request, obj, form, change):
-        if (
-            change
-            and "status" in form.changed_data
-            and obj.status == Transaction.Status.APPROVED
-            and form.initial.get("status") == Transaction.Status.PENDING
-        ):
-            obj.status = Transaction.Status.PENDING
-            try:
-                approve_transaction(obj, approved_by=request.user)
-            except ValueError as error:
-                self.message_user(request, str(error), level=messages.ERROR)
+        """Decisions made by editing the status go through the same services as the action buttons,
+        so balances move and the approver is recorded."""
+        decide = {Transaction.Status.APPROVED: self._approve, Transaction.Status.REJECTED: self._reject}
+        if change and "status" in form.changed_data and obj.status in decide:
+            decide[obj.status](request, Transaction.objects.filter(pk=obj.pk))
             return
         super().save_model(request, obj, form, change)
 

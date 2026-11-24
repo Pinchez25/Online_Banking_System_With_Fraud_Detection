@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -62,8 +63,8 @@ class LoanAdmin(ModelAdmin):
         try:
             decide(loan, reviewer=request.user)
             self.message_user(request, f"Loan #{loan.pk} {verb}.", messages.SUCCESS)
-        except LoanError as error:
-            self.message_user(request, error.message, messages.WARNING)
+        except (LoanError, PermissionDenied) as error:
+            self.message_user(request, str(error), messages.WARNING)
         return redirect(request.headers.get("referer") or reverse("admin:loans_loan_changelist"))
 
     @action(description=_("Approve & disburse"), url_path="approve", icon="payments", variant=ActionVariant.SUCCESS,

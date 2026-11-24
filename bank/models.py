@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -9,6 +10,10 @@ from accounts.validators import validate_card_number
 from bank.ledger import TransactionType
 from bank.services.utils import TRANSACTION_REFERENCE_LENGTH, generate_transaction_id
 from institution.services import institution_name
+
+
+class StatusTransitionError(ValueError):
+    pass
 
 
 class Transaction(models.Model):
@@ -20,6 +25,15 @@ class Transaction(models.Model):
         APPROVED = "approved", _("Approved")
         REJECTED = "rejected", _("Rejected")
         FAILED = "failed", _("Failed")
+
+    # Status only moves forward: screened, then decided. Final states are final.
+    TRANSITIONS = {
+        Status.SCREENING: frozenset({Status.PENDING, Status.REJECTED, Status.FAILED}),
+        Status.PENDING: frozenset({Status.APPROVED, Status.REJECTED, Status.FAILED}),
+        Status.APPROVED: frozenset(),
+        Status.REJECTED: frozenset(),
+        Status.FAILED: frozenset(),
+    }
 
     id = models.UUIDField(
         primary_key=True,
@@ -103,6 +117,12 @@ class Transaction(models.Model):
                 condition=Q(amount__gt=0),
                 name="txn_amount_positive",
             ),
+            # Only transfers have a recipient. (A transfer's recipient may become NULL
+            # if that account is deleted, so the reverse isn't enforced here.)
+            models.CheckConstraint(
+                condition=Q(type=TransactionType.TRANSFER) | Q(recipient__isnull=True),
+                name="txn_recipient_only_on_transfers",
+            ),
         ]
         permissions = [
             ("approve_transaction", "Can approve bank transactions"),
@@ -110,6 +130,41 @@ class Transaction(models.Model):
 
     def __str__(self):
         return self.transaction_id
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance._persisted_status = instance.__dict__.get("status")  # None when the field was deferred
+        return instance
+
+    def allowed_next_statuses(self) -> frozenset:
+        return self.TRANSITIONS[getattr(self, "_persisted_status", None) or self.status]
+
+    def _transition_error(self) -> str | None:
+        persisted = getattr(self, "_persisted_status", None)
+        if self._state.adding or persisted is None or self.status == persisted:
+            return None
+        if self.status not in self.TRANSITIONS[persisted]:
+            return (f"A transaction cannot go from {self.Status(persisted).label.lower()} "
+                    f"to {self.Status(self.status).label.lower()}.")
+        return None
+
+    def clean(self):
+        errors = {}
+        if transition_error := self._transition_error():
+            errors["status"] = transition_error
+        if self.type == TransactionType.TRANSFER and self.recipient_id is None and self._state.adding:
+            errors["recipient"] = "A transfer needs a recipient."
+        if self.type != TransactionType.TRANSFER and self.recipient_id is not None:
+            errors["recipient"] = f"A {self.get_type_display().lower()} has no recipient; only transfers do."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if transition_error := self._transition_error():
+            raise StatusTransitionError(transition_error)
+        super().save(*args, **kwargs)
+        self._persisted_status = self.status
 
 
 class Notification(models.Model):

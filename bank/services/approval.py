@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from django.core.exceptions import PermissionDenied
@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Account
+from accounts.policies import ensure_not_own
 from bank.ledger import REQUESTABLE_TYPES, TransactionType
 from bank.models import Transaction
 
@@ -19,7 +20,11 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True, slots=True)
 class BatchApprovalResult:
     approved_count: int
-    error_count: int
+    errors: list[tuple[str, str]] = field(default_factory=list)  # (reference, reason)
+
+    @property
+    def error_count(self) -> int:
+        return len(self.errors)
 
 
 def _validate_transaction_amount(amount):
@@ -84,18 +89,8 @@ def _reject_transaction(transaction_instance, message):
 
 
 def _assert_not_self_approval(transaction_instance, approved_by):
-    """Prevent an account holder from approving their own transaction."""
-    if approved_by is None:
-        return
-
-    restricted_account_ids = {transaction_instance.account_id}
-    if transaction_instance.recipient_id is not None:
-        restricted_account_ids.add(transaction_instance.recipient_id)
-
-    if approved_by.id in restricted_account_ids:
-        raise PermissionDenied(
-            "Users are not allowed to approve their own transactions."
-        )
+    ensure_not_own(approved_by, transaction_instance.account_id, transaction_instance.recipient_id,
+                   subject="transactions")
 
 
 def approve_transaction(transaction_instance, approved_by=None):
@@ -211,8 +206,7 @@ def approve_batch(queryset, approved_by=None) -> BatchApprovalResult:
     pending_txns = queryset.filter(status=Transaction.Status.PENDING).select_related(
         "account", "recipient"
     )
-    approved_count = 0
-    error_count = 0
+    approved_count, errors = 0, []
 
     for txn in pending_txns:
         try:
@@ -220,9 +214,9 @@ def approve_batch(queryset, approved_by=None) -> BatchApprovalResult:
             approved_count += 1
         except (ValueError, PermissionDenied) as exc:
             logger.warning("Failed to approve transaction %s: %s", txn.pk, exc)
-            error_count += 1
+            errors.append((txn.transaction_id, str(exc)))
 
-    return BatchApprovalResult(approved_count=approved_count, error_count=error_count)
+    return BatchApprovalResult(approved_count=approved_count, errors=errors)
 
 
 def reject_batch(queryset, approved_by=None) -> int:

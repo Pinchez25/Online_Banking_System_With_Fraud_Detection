@@ -12,6 +12,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from accounts.models import Account
+from accounts.policies import ensure_not_own
 from bank.ledger import TransactionType
 from bank.models import Notification, Transaction
 from bank.services.notifications import create_alert
@@ -108,6 +109,7 @@ def _post(*, account_id, txn_type, amount, by) -> Transaction:
 
 
 def approve_loan(loan: Loan, *, reviewer) -> Loan:
+    ensure_not_own(reviewer, loan.account_id, subject="loan")
     with transaction.atomic():
         loan = _lock_open(loan.pk, Loan.Status.APPLIED)
         account = Account.objects.select_for_update().only("id", "status", "is_blocked").get(pk=loan.account_id)
