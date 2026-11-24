@@ -50,7 +50,7 @@ class ActiveModelProvider:
             self._cached = None
         elif self._cached is None or self._cached.version.pk != version.pk:
             try:
-                self._cached = LoadedModel(version, _load_artifact(version.artifact_path))
+                self._cached = LoadedModel(version, _load_artifact(str(version.artifact_file)))
             except (OSError, KeyError, ValueError):
                 logger.exception("Active model %s could not be loaded; scoring with rules only", version)
                 self._cached = None

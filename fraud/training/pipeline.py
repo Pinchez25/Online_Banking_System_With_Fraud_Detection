@@ -73,9 +73,9 @@ def train_candidate(run_id: str, name: str) -> dict:
     x_valid, y_valid = trainer.xy(valid)
     proba = model.predict_proba(x_valid)[:, 1]
 
-    path = run_dir(run_id) / f"candidate_{name}.joblib"
-    joblib.dump(model, path)
-    result = {"name": name, "path": str(path), "valid": trainer.ranking_metrics(y_valid, proba)}
+    filename = f"candidate_{name}.joblib"
+    joblib.dump(model, run_dir(run_id) / filename)
+    result = {"name": name, "file": filename, "valid": trainer.ranking_metrics(y_valid, proba)}
     logger.info("Candidate %s: valid PR-AUC %.4f", name, result["valid"]["pr_auc"])
     return result
 
@@ -83,7 +83,7 @@ def train_candidate(run_id: str, name: str) -> dict:
 @_timed
 def select_and_register(results: list[dict], run_id: str) -> dict:
     best = max(results, key=lambda r: r["valid"]["pr_auc"])
-    model = joblib.load(best["path"])
+    model = joblib.load(run_dir(run_id) / best["file"])
     _, valid, test = trainer.split(pd.read_parquet(_frame_path(run_id)))
 
     x_valid, y_valid = trainer.xy(valid)
@@ -107,7 +107,7 @@ def select_and_register(results: list[dict], run_id: str) -> dict:
         if promote and champion:
             FraudModelVersion.objects.filter(pk=champion.pk).update(is_active=False)
         version = FraudModelVersion.objects.create(
-            version=run_id, name=best["name"], artifact_path=str(artifact),
+            version=run_id, name=best["name"], artifact_path=str(artifact.relative_to(settings.FRAUD["ARTIFACTS_DIR"])),
             feature_columns=list(MODEL_FEATURES), review_threshold=review_at, block_threshold=block_at,
             metrics=metrics, is_active=promote,
         )

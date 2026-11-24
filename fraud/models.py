@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
@@ -8,7 +11,7 @@ class FraudModelVersion(models.Model):
 
     version = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=80)
-    artifact_path = models.CharField(max_length=500)
+    artifact_path = models.CharField(max_length=500)  # relative to FRAUD["ARTIFACTS_DIR"]
     feature_columns = models.JSONField()
     review_threshold = models.FloatField()
     block_threshold = models.FloatField()
@@ -24,6 +27,10 @@ class FraudModelVersion(models.Model):
 
     def __str__(self):
         return f"{self.name} {self.version}{' (active)' if self.is_active else ''}"
+
+    @property
+    def artifact_file(self) -> Path:
+        return Path(settings.FRAUD["ARTIFACTS_DIR"]) / self.artifact_path
 
     @property
     def test_pr_auc(self) -> float:
