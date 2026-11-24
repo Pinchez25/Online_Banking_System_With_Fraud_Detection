@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Support{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Support</h1>
+        <p>We're here 24 hours a day, every day.</p>
+    </div>
+</header>
+
+<section class="panel">
+    <ul class="row-list">
+        <li class="row-list__item">
+            <div><p class="row-list__title">Lost card or a payment you don't recognise</p>
+                <p class="row-list__meta">Freeze your card straight away from the Cards page, then call us.</p></div>
+            {% if user.is_authenticated %}<a class="btn btn--primary" href="{% url 'bank:cards' %}">Go to Cards</a>{% endif %}
+        </li>
+        <li class="row-list__item">
+            <div><p class="row-list__title">Phone</p><p class="row-list__meta">{{ institution.support_phone }}</p></div>
+        </li>
+        <li class="row-list__item">
+            <div><p class="row-list__title">Email</p><p class="row-list__meta"><a href="mailto:{{ institution.support_email }}">{{ institution.support_email }}</a></p></div>
+        </li>
+        <li class="row-list__item">
+            <div><p class="row-list__title">Account applications</p>
+                <p class="row-list__meta">We review new applications within one working day and notify you in the app.</p></div>
+        </li>
+    </ul>
+</section>
+{% endblock %}

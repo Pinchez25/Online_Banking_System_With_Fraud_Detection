@@ -13,9 +13,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import Account, Profile
-from bank.models import Notification, Transaction
+from bank.models import Beneficiary, Card, Notification, Transaction
 from events.models import OutboxEvent
 from fraud.models import FraudModelVersion, RiskAssessment
+from institution.services import format_money, institution_name
+from loans.models import Loan
 
 BADGE_CACHE_KEY = "admin:badge-counts"
 BADGE_CACHE_SECONDS = 15
@@ -39,9 +41,14 @@ def _compute_badge_counts() -> dict[str, int]:
         pending=Count("pk", filter=Q(status=PENDING)),
         in_review=Count("pk", filter=Q(status=PENDING, risk_assessment__decision=RiskAssessment.Decision.REVIEW)),
     )
+    accounts = Account.objects.aggregate(
+        blocked=Count("pk", filter=Q(is_blocked=True)),
+        applications=Count("pk", filter=Q(status=Account.Status.PENDING, is_staff=False)),
+    )
     return {
         **transactions,
-        "blocked": Account.objects.filter(is_blocked=True).count(),
+        **accounts,
+        "loan_applications": Loan.objects.filter(status=Loan.Status.APPLIED).count(),
         "unpublished": OutboxEvent.objects.filter(published_at__isnull=True).count(),
     }
 
@@ -70,6 +77,14 @@ def outbox_badge(request):
     return _badge("unpublished")
 
 
+def applications_badge(request):
+    return _badge("applications")
+
+
+def loan_applications_badge(request):
+    return _badge("loan_applications")
+
+
 # --- chrome -------------------------------------------------------------------------------------
 
 def environment(request):
@@ -92,7 +107,14 @@ def navigation(request) -> list[dict]:
         ("Banking", [
             item("Approval queue", "pending_actions", Transaction, badge="pending_badge", status__exact=PENDING),
             item("All transactions", "receipt_long", Transaction),
+            item("Cards", "credit_card", Card),
+            item("Beneficiaries", "contacts", Beneficiary),
             item("Notifications", "notifications", Notification),
+        ]),
+        ("Lending", [
+            item("Loan applications", "request_quote", Loan, badge="loan_applications_badge", badge_variant="warning",
+                 status__exact=Loan.Status.APPLIED),
+            item("All loans", "account_balance_wallet", Loan),
         ]),
         ("Fraud", [
             item("Manual review", "policy", RiskAssessment, badge="review_badge", badge_variant="warning",
@@ -101,6 +123,8 @@ def navigation(request) -> list[dict]:
             item("Model versions", "model_training", FraudModelVersion),
         ]),
         ("Customers", [
+            item("Account applications", "how_to_reg", Account, badge="applications_badge", badge_variant="warning",
+                 status__exact=Account.Status.PENDING, is_staff__exact=0),
             item("Accounts", "person", Account),
             item("Blocked accounts", "block", Account, badge="blocked_badge", badge_variant="danger", is_blocked__exact=1),
             item("Profiles", "badge", Profile),
@@ -136,7 +160,7 @@ def _kpis(today_start) -> list[dict]:
          "footer": "Flagged by behavioural rules or the model"},
         {"title": "Blocked accounts", "value": counts["blocked"], "href": _changelist(Account, is_blocked__exact=1),
          "footer": f"{today['blocked']} transactions blocked today ({block_rate:.1%})"},
-        {"title": "Approved volume today", "value": f"KES {today['volume'] or 0:,.2f}",
+        {"title": "Approved volume today", "value": f"{format_money(today['volume'] or 0)}",
          "href": _changelist(Transaction, status__exact=Transaction.Status.APPROVED),
          "footer": f"{today['total']} transactions requested today"},
     ]
@@ -172,7 +196,7 @@ def _review_queue() -> dict:
         .order_by("-risk_score")[:REVIEW_QUEUE_SIZE]
     )
     return {
-        "headers": ["Reference", "Account", "Amount (KES)", "Risk", "Why"],
+        "headers": ["Reference", "Account", f"Amount ({settings.BANK_CURRENCY})", "Risk", "Why"],
         "rows": [
             [
                 a.transaction.transaction_id,
@@ -202,3 +226,7 @@ def dashboard(request, context: dict) -> dict:
         "models_url": _changelist(FraudModelVersion),
     })
     return context
+
+
+def site_title(request):
+    return institution_name()

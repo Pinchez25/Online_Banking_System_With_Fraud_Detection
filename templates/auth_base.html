@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sign in{% endblock %} · Jumla Bank</title>
+    <title>{% block title %}Sign in{% endblock %} · {{ institution.name }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
@@ -19,13 +19,13 @@
 <div class="auth">
     <aside class="auth__brand">
         <div class="auth__brand-inner">
-            <div class="sidebar__mark auth__mark">J</div>
-            <p class="auth__brand-name">Jumla Bank</p>
+            <div class="sidebar__mark auth__mark">{{ institution.mark }}</div>
+            <p class="auth__brand-name">{{ institution.name }}</p>
             <h1 class="auth__tagline">{% block tagline %}Banking that keeps pace with you.{% endblock %}</h1>
             <p class="auth__brand-copy">{% block brand_copy %}Move money, track spending and manage loans from one
                 account — built for how you actually bank.{% endblock %}</p>
         </div>
-        <p class="auth__brand-foot">&copy; {{ current_year|default:"2026" }} Jumla Bank. Registered in Kenya.</p>
+        <p class="auth__brand-foot">&copy; {{ current_year }} {{ institution.name }}. {{ institution.legal_notice }}</p>
     </aside>
 
     <main class="auth__panel">

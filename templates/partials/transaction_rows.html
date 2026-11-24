@@ -1,0 +1,14 @@
+{% for txn in rows %}
+<tr>
+    <td>{{ txn.date|date:"j M Y, H:i" }}</td>
+    <td>{{ txn.description }}</td>
+    <td class="table__mono">{{ txn.reference }}</td>
+    <td>{{ txn.type }}</td>
+    <td class="table__num {% if txn.direction == 'credit' %}is-credit{% else %}is-debit{% endif %}">
+        {% if txn.direction == 'credit' %}+{% else %}-{% endif %}{{ txn.amount|floatformat:"2g" }}
+    </td>
+    <td><span class="pill pill--{{ txn.status }}">{{ txn.status_display }}</span></td>
+</tr>
+{% empty %}
+<tr><td colspan="6" class="table__empty">{{ empty_message|default:"No transactions yet." }}</td></tr>
+{% endfor %}

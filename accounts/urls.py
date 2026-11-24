@@ -13,6 +13,7 @@ urlpatterns = [
     path("account/edit/", views.AccountUpdateView.as_view(), name="account-update"),
     path("account/deactivate/", views.AccountDeactivateView.as_view(), name="account-deactivate"),
     path("account-blocked/", views.AccountBlockedView.as_view(), name="account-blocked"),
+    path("session/keepalive/", views.session_keepalive, name="session-keepalive"),
     path("password/change/", views.AccountPasswordChangeView.as_view(), name="password-change"),
     path(
         "password/change/done/",

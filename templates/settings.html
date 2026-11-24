@@ -5,7 +5,7 @@
 {% block content %}
     <div class="topbar__greeting page-head">
         <h1>Settings</h1>
-        <p>Manage how Jumla Bank works for you.</p>
+        <p>Manage how {{ institution.name }} works for you.</p>
     </div>
 
     <div class="settings">
@@ -101,7 +101,7 @@
                     <label class="field">
                         <span>Currency</span>
                         <select name="currency">
-                            <option {% if preferences.currency == "KES" %}selected{% endif %}>KES</option>
+                            <option {% if preferences.currency == currency %}selected{% endif %}>{{ currency }}</option>
                             <option {% if preferences.currency == "USD" %}selected{% endif %}>USD</option>
                             <option {% if preferences.currency == "EUR" %}selected{% endif %}>EUR</option>
                         </select>

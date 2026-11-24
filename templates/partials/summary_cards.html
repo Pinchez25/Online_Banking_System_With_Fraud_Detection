@@ -1,31 +1,43 @@
+{% load money %}
 <section class="cards" aria-label="Account summary">
     <article class="card card--accent">
         <p class="card__label">Total balance</p>
-        <p class="card__figure">KES {{ summary.total_balance|default:"482,650.00" }}</p>
-        <p class="card__sub card__sub--up">▲ {{ summary.balance_change|default:"2.4%" }} this month</p>
+        <p class="card__figure">{{ user.bank_balances|money }}</p>
+        {% if summary.change_percent is not None %}
+            <p class="card__sub {% if summary.change_percent >= 0 %}card__sub--up{% else %}card__sub--down{% endif %}">
+                {% if summary.change_percent >= 0 %}▲{% else %}▼{% endif %} {{ summary.change_percent|floatformat:1 }}% this month
+            </p>
+        {% else %}
+            <p class="card__sub">{% if account_open %}No change this month{% else %}Opens after approval{% endif %}</p>
+        {% endif %}
     </article>
 
     <article class="card">
         <p class="card__label">Account number</p>
-        <p class="card__figure card__figure--mono">{{ summary.account_number|default:"0112 4483 6621" }}</p>
-        <p class="card__sub">{{ summary.account_type|default:"Premium current account" }}</p>
+        <p class="card__figure card__figure--mono">{{ user.account_number|default:"Pending" }}</p>
+        <p class="card__sub">{{ user.get_account_type_display }} account</p>
     </article>
 
     <article class="card">
-        <p class="card__label">Savings</p>
-        <p class="card__figure">KES {{ summary.savings_total|default:"156,200.00" }}</p>
-        <p class="card__sub">{{ summary.savings_goal|default:"3 active goals" }}</p>
+        <p class="card__label">Awaiting approval</p>
+        <p class="card__figure">{{ summary.open_requests_total|default:0|money }}</p>
+        <p class="card__sub">{{ summary.open_requests|default:0 }} request{{ summary.open_requests|default:0|pluralize }} in screening or review</p>
     </article>
 
     <article class="card">
         <p class="card__label">Loans outstanding</p>
-        <p class="card__figure">KES {{ summary.loans_total|default:"64,000.00" }}</p>
-        <p class="card__sub">Next instalment {{ summary.loan_due|default:"3 Oct 2026" }}</p>
+        <p class="card__figure">{% if loan.status == "active" %}{{ loan.outstanding|money }}{% else %}{{ 0|money }}{% endif %}</p>
+        <p class="card__sub">
+            {% if loan_due %}Next instalment {{ loan_due|date:"j M Y" }}
+            {% elif loan.status == "applied" %}Application under review
+            {% else %}No active loan{% endif %}
+        </p>
     </article>
 
     <article class="card">
         <p class="card__label">National ID</p>
-        <p class="card__figure card__figure--mono">{{ summary.national_id|default:"3xxxxx78" }}</p>
-        <p class="card__sub card__sub--verified">✓ Verified</p>
+        <p class="card__figure card__figure--mono">{{ user.national_id|default:"Not provided" }}</p>
+        {% if account_open %}<p class="card__sub card__sub--verified">✓ Verified</p>
+        {% else %}<p class="card__sub">Verification pending</p>{% endif %}
     </article>
 </section>

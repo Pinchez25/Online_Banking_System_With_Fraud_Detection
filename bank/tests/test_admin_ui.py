@@ -6,10 +6,12 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from accounts.models import Account
-from bank.models import Notification, Transaction
+from bank.models import Beneficiary, Card, Notification, Transaction
 from bank.tests.factories import make_account
 from events.models import OutboxEvent
 from fraud.models import FraudModelVersion, RiskAssessment
+from loans.models import Loan
+from loans.services import apply_for_loan
 from Online_Banking_System import admin_ui
 
 
@@ -17,7 +19,7 @@ class AdminPagesTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.admin = Account.objects.create_superuser(username="root", email="root@example.com", password="pw")
-        cls.customer = make_account(balance="1000", cc_number="4242424242424242")
+        cls.customer = make_account(balance="1000")
         cls.payee = make_account(balance="10")
         cls.txn = Transaction.objects.create(
             account=cls.customer, recipient=cls.payee, type="T", amount=Decimal("250"), status=Transaction.Status.PENDING,
@@ -31,6 +33,8 @@ class AdminPagesTests(TestCase):
             review_threshold=0.2, block_threshold=0.85, metrics={"test": {"pr_auc": 0.98}}, is_active=True,
         )
         Notification.objects.create(recipient=cls.customer, kind="alert", title="t", body="b")
+        cls.beneficiary = Beneficiary.objects.create(owner=cls.customer, recipient=cls.payee, nickname="Payee")
+        cls.loan = apply_for_loan(account=cls.customer, principal="5000", term_months=6, purpose="Stock")
         OutboxEvent.objects.create(topic="t", key="k", payload={})
 
     def setUp(self):
@@ -48,7 +52,8 @@ class AdminPagesTests(TestCase):
 
     def test_every_changelist_and_change_page_renders(self):
         objects = [self.txn, self.assessment, self.model, self.customer, self.customer.profile,
-                   Notification.objects.get(), OutboxEvent.objects.get()]
+                   Notification.objects.get(), OutboxEvent.objects.get(), Card.objects.filter(account=self.customer).get(),
+                   self.beneficiary, self.loan]
         for obj in objects:
             opts = obj._meta
             for url in (reverse(f"admin:{opts.app_label}_{opts.model_name}_changelist"),
@@ -78,6 +83,23 @@ class AdminPagesTests(TestCase):
         self.txn.refresh_from_db()
         self.assertEqual(self.txn.status, Transaction.Status.REJECTED)
 
+    def test_application_queue_approves_and_opens_accounts(self):
+        applicant = make_account(open=False)
+        queue = self.client.get(reverse("admin:accounts_account_changelist") + "?status__exact=pending&is_staff__exact=0")
+        self.assertContains(queue, applicant.username)
+
+        self.client.get(reverse("admin:accounts_account_approve_application_row", args=[applicant.pk]))
+        applicant.refresh_from_db()
+        self.assertEqual(applicant.status, Account.Status.ACTIVE)
+        self.assertTrue(applicant.cards.exists())
+
+    def test_loan_queue_approves_and_disburses(self):
+        self.client.get(reverse("admin:loans_loan_approve", args=[self.loan.pk]))
+        self.loan.refresh_from_db()
+        self.customer.refresh_from_db()
+        self.assertEqual(self.loan.status, Loan.Status.ACTIVE)
+        self.assertEqual(self.customer.bank_balances, Decimal("6000"))
+
     def test_activate_model_version_switches_the_active_model(self):
         challenger = FraudModelVersion.objects.create(
             version="v2", name="hgb", artifact_path="runs/v2/model.joblib", feature_columns=[],
@@ -105,7 +127,7 @@ class SidebarTests(TestCase):
         self.assertEqual(self.titles(), ["Dashboard", "Manual review", "Risk assessments"])
 
     def test_badge_counts_are_computed_once_and_cached(self):
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):  # transactions, accounts, loans, outbox
             admin_ui.pending_badge(self.request)
         with self.assertNumQueries(0):
             admin_ui.review_badge(self.request)

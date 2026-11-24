@@ -1,0 +1,23 @@
+{% if user.is_authenticated %}
+<div class="modal" id="sessionTimeoutModal" role="alertdialog" aria-modal="true" aria-labelledby="sessionTimeoutTitle" hidden
+     data-session-timeout
+     data-idle-seconds="{{ session_idle_seconds }}"
+     data-warning-seconds="{{ session_warning_seconds }}"
+     data-keepalive-url="{% url 'accounts:session-keepalive' %}"
+     data-signed-out-url="{% url 'accounts:login' %}?reason=idle">
+    <div class="modal__panel">
+        <div class="modal__head">
+            <span class="modal__icon icon" data-icon="shield"></span>
+            <h2 id="sessionTimeoutTitle">Are you still there?</h2>
+        </div>
+        <p>For your security you'll be signed out in <strong data-session-countdown>{{ session_warning_seconds }}</strong> seconds.</p>
+        <div class="modal__actions">
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost">Sign out</button>
+            </form>
+            <button type="button" class="btn btn--primary" data-session-stay>Stay signed in</button>
+        </div>
+    </div>
+</div>
+{% endif %}

@@ -2,6 +2,8 @@ from django.contrib.auth import logout
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from accounts.sessions import exceeded_absolute_lifetime
+
 
 class BlockedAccountMiddleware:
     """Ends the session of an account the fraud engine has blocked.
@@ -22,4 +24,18 @@ class BlockedAccountMiddleware:
             if request.path != blocked_url and not request.path.startswith(self.EXEMPT_PREFIXES):
                 logout(request)
                 return redirect(blocked_url)
+        return self.get_response(request)
+
+
+class SessionLifetimeMiddleware:
+    """Signs the user out once their sign-in is older than SESSION_ABSOLUTE_TIMEOUT_SECONDS,
+    however active they have been."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated and exceeded_absolute_lifetime(request.session):
+            logout(request)
+            return redirect(f"{reverse('accounts:login')}?reason=expired")
         return self.get_response(request)

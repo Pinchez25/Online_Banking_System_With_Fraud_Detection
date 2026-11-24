@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Transactions</h1>
+        <p>Everything you've sent, received, deposited and withdrawn.</p>
+    </div>
+    <div class="page-header__actions">
+        <a class="btn btn--ghost" href="{% url 'bank:transactions-export' 'csv' %}{% if querystring %}?{{ querystring }}{% endif %}">
+            <span class="icon" data-icon="download"></span> CSV
+        </a>
+        <a class="btn btn--ghost" href="{% url 'bank:transactions-export' 'pdf' %}{% if querystring %}?{{ querystring }}{% endif %}">
+            <span class="icon" data-icon="download"></span> PDF
+        </a>
+    </div>
+</header>
+
+<form class="filters panel" method="get" aria-label="Filter transactions">
+    {% for field in filter_form %}
+    <label class="field">
+        <span>{{ field.label }}</span>
+        {{ field }}
+    </label>
+    {% endfor %}
+    <div class="filters__actions">
+        <button class="btn btn--primary" type="submit">Apply</button>
+        {% if querystring %}<a class="btn btn--text" href="{% url 'bank:transactions' %}">Clear</a>{% endif %}
+    </div>
+    {% for error in filter_form.non_field_errors %}<p class="field__error filters__error">{{ error }}</p>{% endfor %}
+</form>
+
+<section class="panel">
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Reference</th>
+                    <th>Type</th>
+                    <th class="table__num">Amount ({{ currency }})</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% include "partials/transaction_rows.html" with empty_message="No transactions match these filters." %}
+            </tbody>
+        </table>
+    </div>
+    {% include "partials/pagination.html" %}
+</section>
+<p class="page-note">Exports include every transaction matching the filters, not just this page.</p>
+{% endblock %}

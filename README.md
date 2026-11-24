@@ -3,7 +3,7 @@ workflows, real-time notifications, and fraud detection powered by a machine lea
 
 ## Overview
 
-Kwetu Bank is a full-stack banking web application built with Django. It provides a simple digital banking experience
+This is a full-stack banking web application built with Django. It provides a simple digital banking experience
 for customers to:
 
 - register and manage personal accounts
@@ -27,13 +27,22 @@ for customers to:
 
 ## Key Features
 
-- Secure account registration and password reset flow
+- Account opening: customers apply online (name and national ID required); staff approve or reject in the
+  back office. Approval assigns an account number and issues a debit card. Only open accounts can transact.
 - Profile management with next-of-kin data
-- Dashboard with account overview and transaction summaries
-- Deposit, withdrawal, and transfer services
+- Dashboard with live balance, monthly change, spending breakdown, open requests and loan status
+- Deposits, withdrawals (need an active debit card) and transfers to an account number
+- Cards: freeze and unfreeze instantly
+- Beneficiaries: saved payees with one-tap "send again"
+- Transaction history with filters and pagination; CSV and PDF export of the filtered set
+- Monthly PDF statements with opening, running and closing balances
+- Loans: apply, staff approval and disbursement, fixed amortised instalments, repayments from balance
+- Session security: 5-minute idle timeout with a warning and "stay signed in", 8-hour absolute limit,
+  sign-out when the browser closes, one active session per customer
 - Real-time fraud screening of every deposit, withdrawal and transfer, with a staff review queue
 - Real-time notification center with read/unread tracking
-- Back office on Django Unfold (`/admin/`): operations dashboard, approval and manual-review queues with one-click approve/reject, model version activation
+- Back office on Django Unfold (`/admin/`): operations dashboard, approval and manual-review queues with one-click
+  approve/reject, model version activation
 - Email-based authentication and password reset support
 - Docker Compose stack: PostgreSQL, Redis, Kafka, Kafka UI and Mailpit
 
@@ -104,14 +113,14 @@ uv run python manage.py train_fraud_model --inline     # ~3-5 min, peaks around 
 uv run honcho start                  # web, Celery workers + beat, both Kafka consumer groups
 ```
 
-| Process          | What it does                                                    |
-|------------------|-----------------------------------------------------------------|
-| `web`            | `runserver` on Daphne (HTTP, WebSockets, auto-reload), :8000    |
-| `worker`         | Celery default queue: outbox relay                              |
-| `ml_worker`      | Celery `ml` queue, concurrency 1 (memory-bound training)        |
-| `beat`           | Outbox sweep every 10s, published-outbox purge hourly           |
-| `fraud_scorer`   | `run_consumer fraud-scorer`                                     |
-| `bank_screening` | `run_consumer bank-screening`                                   |
+| Process          | What it does                                                 |
+|------------------|--------------------------------------------------------------|
+| `web`            | `runserver` on Daphne (HTTP, WebSockets, auto-reload), :8000 |
+| `worker`         | Celery default queue: outbox relay                           |
+| `ml_worker`      | Celery `ml` queue, concurrency 1 (memory-bound training)     |
+| `beat`           | Outbox sweep every 10s, published-outbox purge hourly        |
+| `fraud_scorer`   | `run_consumer fraud-scorer`                                  |
+| `bank_screening` | `run_consumer bank-screening`                                |
 
 No Kafka handy? Set `EVENT_BUS=inline` and handlers run in-process after commit (tests use this).
 
@@ -160,12 +169,26 @@ Run Django's system checks:
 uv run python manage.py check
 ```
 
+## Bank Configuration
+
+Nothing about the bank's identity is hard-coded.
+
+| What | Where | Changeable at runtime |
+|------|-------|-----------------------|
+| Name, legal notice, support email and phone | Back office → **Bank profile** (seeded from `BANK_NAME`, `BANK_LEGAL_NOTICE`, `BANK_SUPPORT_EMAIL`, `BANK_SUPPORT_PHONE` on first use) | Yes |
+| Currency code | `BANK_CURRENCY` | No: amounts are stored without a currency |
+| Time zone | `TIME_ZONE` | No |
+| Transaction limits, loan terms and rate, session timeouts | `Online_Banking_System/settings.py` | No |
+
+Templates read the profile as `{{ institution }}` and format amounts with `{{ amount|money }}`; Python code uses
+`institution.services.get_institution()` and `format_money()`.
+
 ## Environment Notes
 
 - The app uses `EMAIL_HOST` and `EMAIL_PORT` for password reset messages and notifications.
 - Mailpit is useful for local development because it captures outbound emails without sending them externally.
 - Redis backs the cache, Channels, Celery and the fraud profiles (separate DB numbers).
-- The app is configured for Nairobi time (`Africa/Nairobi`) and uses a custom `Account` model as the user model.
+- The app uses a custom `Account` model as the user model.
 
 ## Production Considerations
 

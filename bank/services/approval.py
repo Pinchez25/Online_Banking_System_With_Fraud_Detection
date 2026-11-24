@@ -9,12 +9,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Account
+from bank.ledger import REQUESTABLE_TYPES, TransactionType
 from bank.models import Transaction
-from bank.services.utils import TRANSACTION_TYPES
 
 logger = logging.getLogger(__name__)
 
-_TRANSACTION_TYPE_CODES = {transaction_type[0] for transaction_type in TRANSACTION_TYPES}
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,14 +133,14 @@ def approve_transaction(transaction_instance, approved_by=None):
 
         _assert_not_self_approval(transaction_instance, approved_by)
 
-        if transaction_instance.type not in _TRANSACTION_TYPE_CODES:
+        if transaction_instance.type not in REQUESTABLE_TYPES:
             raise ValueError(
                 f"Unsupported transaction type: {transaction_instance.type}"
             )
 
         _validate_transaction_amount(transaction_instance.amount)
 
-        if transaction_instance.type == "T":
+        if transaction_instance.type == TransactionType.TRANSFER:
             if transaction_instance.recipient_id is None:
                 raise ValueError("Transfer recipient is missing.")
 
@@ -166,7 +165,7 @@ def approve_transaction(transaction_instance, approved_by=None):
             account = _lock_account(transaction_instance.account_id)
 
             if (
-                    transaction_instance.type == "W"
+                    transaction_instance.type == TransactionType.WITHDRAWAL
                     and account.bank_balances < transaction_instance.amount
             ):
                 rejection_error = _reject_transaction(
@@ -174,11 +173,11 @@ def approve_transaction(transaction_instance, approved_by=None):
                     "The account does not have enough funds to complete this withdrawal.",
                 )
 
-            elif transaction_instance.type == "D":
+            elif transaction_instance.type == TransactionType.DEPOSIT:
                 account.bank_balances += transaction_instance.amount
                 account.save(update_fields=["bank_balances"])
 
-            elif transaction_instance.type == "W":
+            elif transaction_instance.type == TransactionType.WITHDRAWAL:
                 account.bank_balances -= transaction_instance.amount
                 account.save(update_fields=["bank_balances"])
 

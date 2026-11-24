@@ -3,11 +3,19 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 
+from loans.services import open_loan
+
 from .models import Account, NextOfKin, Profile
 
 
 class AccountRegistrationForm(UserCreationForm):
-    """Sign-up form; relies on UserCreationForm for password validation and hashing."""
+    """Account application; relies on UserCreationForm for password validation and hashing.
+    Name and national ID are required for identity (KYC) checks before staff open the account."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("first_name", "last_name", "national_id"):
+            self.fields[name].required = True
 
     class Meta(UserCreationForm.Meta):
         model = Account
@@ -86,6 +94,12 @@ class AccountDeactivationForm(forms.Form):
         if not self.user.check_password(password):
             raise ValidationError("The password you entered is incorrect.")
         return password
+
+    def clean(self):
+        cleaned = super().clean()
+        if open_loan(self.user.pk):
+            raise ValidationError("Repay your loan, or withdraw your loan application, before closing your account.")
+        return cleaned
 
 
 class CustomAuthenticationForm(AuthenticationForm):

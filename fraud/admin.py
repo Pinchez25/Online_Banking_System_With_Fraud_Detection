@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin, messages
 from django.db import transaction
 from django.shortcuts import redirect
@@ -42,7 +43,7 @@ class RiskAssessmentAdmin(TransactionApprovalMixin, ModelAdmin):
     def account(self, obj):
         return obj.transaction.account
 
-    @display(description=_("Amount (KES)"), ordering="transaction__amount")
+    @display(description=f"Amount ({settings.BANK_CURRENCY})", ordering="transaction__amount")
     def amount(self, obj):
         return f"{obj.transaction.amount:,.2f}"
 

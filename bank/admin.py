@@ -10,7 +10,7 @@ from unfold.enums import ActionVariant
 
 from fraud.models import RiskAssessment
 
-from .models import Notification, Transaction
+from .models import Beneficiary, Card, Notification, Transaction
 from .services.approval import approve_batch, approve_transaction, reject_batch
 
 STATUS_COLOURS = {
@@ -158,3 +158,31 @@ class TransactionAdmin(TransactionApprovalMixin, ModelAdmin):
                 self.message_user(request, str(error), level=messages.ERROR)
             return
         super().save_model(request, obj, form, change)
+
+
+CARD_COLOURS = {Card.Status.ACTIVE: "success", Card.Status.FROZEN: "warning", Card.Status.CANCELLED: "danger"}
+
+
+@admin.register(Card)
+class CardAdmin(ModelAdmin):
+    list_display = ("masked_number", "account", "expiry", "status_badge", "issued_at")
+    list_filter = (("status", ChoicesDropdownFilter),)
+    search_fields = ("account__username", "account__email", "account__account_number")
+    list_select_related = ("account",)
+    readonly_fields = ("account", "masked_number", "expiry_month", "expiry_year", "issued_at")
+    exclude = ("number",)
+
+    def has_add_permission(self, request):
+        return False  # cards are issued when an account application is approved
+
+    @display(description=_("Status"), ordering="status", label=CARD_COLOURS)
+    def status_badge(self, obj):
+        return obj.status, obj.get_status_display()
+
+
+@admin.register(Beneficiary)
+class BeneficiaryAdmin(ModelAdmin):
+    list_display = ("nickname", "owner", "recipient", "last_used_at", "created_at")
+    search_fields = ("nickname", "owner__username", "recipient__username", "recipient__account_number")
+    list_select_related = ("owner", "recipient")
+    readonly_fields = ("owner", "recipient", "created_at", "last_used_at")

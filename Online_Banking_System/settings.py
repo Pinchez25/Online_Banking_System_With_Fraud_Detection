@@ -21,6 +21,20 @@ ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "localhost,
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()]
 
 AUTH_USER_MODEL = 'accounts.Account'
+
+# ---------------------------------------------------------------------------
+# Bank identity. The name and contact details live in the Institution model
+# (editable in the back office); these values seed it on first use. Currency
+# and time zone are fixed per deployment: amounts are stored without a currency.
+# ---------------------------------------------------------------------------
+INSTITUTION_DEFAULTS = {
+    "name": os.getenv("BANK_NAME", "Demo Bank"),
+    "legal_notice": os.getenv("BANK_LEGAL_NOTICE", ""),
+    "support_email": os.getenv("BANK_SUPPORT_EMAIL", "support@example.com"),
+    "support_phone": os.getenv("BANK_SUPPORT_PHONE", "+000 000 000"),
+}
+BANK_CURRENCY = os.getenv("BANK_CURRENCY", "KES")
+TIME_ZONE = os.getenv("TIME_ZONE", "Africa/Nairobi")
 LOGIN_URL = reverse_lazy('accounts:login')
 LOGIN_REDIRECT_URL = reverse_lazy('bank:dashboard')
 
@@ -39,6 +53,8 @@ INSTALLED_APPS = [
     'bank.apps.BankConfig',
     'accounts.apps.AccountsConfig',
     'fraud.apps.FraudConfig',
+    'loans.apps.LoansConfig',
+    'institution.apps.InstitutionConfig',
 ]
 
 
@@ -60,6 +76,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'accounts.middleware.BlockedAccountMiddleware',
+    'accounts.middleware.SessionLifetimeMiddleware',
 
 ]
 
@@ -67,11 +84,17 @@ ROOT_URLCONF = "Online_Banking_System.urls"
 
 # Sliding 5-minute inactivity timeout: each request re-saves the session,
 # pushing its expiry forward.
-SESSION_EXPIRE_SECONDS = 300
+SESSION_IDLE_TIMEOUT_SECONDS = 300
+SESSION_ABSOLUTE_TIMEOUT_SECONDS = 8 * 60 * 60  # re-authenticate at least once per working day
+SESSION_TIMEOUT_WARNING_SECONDS = 60  # the page warns this long before the idle timeout
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_COOKIE_AGE = SESSION_EXPIRE_SECONDS
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = SESSION_IDLE_TIMEOUT_SECONDS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 TEMPLATES = [
     {
@@ -85,7 +108,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                'accounts.context_processor.authentication_forms',
+                'bank.context_processors.shell',
+                'institution.context_processors.institution',
 
             ],
         },
@@ -98,6 +122,16 @@ TRANSACTION_LIMITS = {
     "W": (10, 1_000_000),
     "T": (10, 1_000_000),
 }
+
+LOANS = {
+    "ANNUAL_RATE": "0.14",
+    "TERMS_MONTHS": (3, 6, 12, 24, 36),
+    "MIN_AMOUNT": 1_000,
+    "MAX_AMOUNT": 500_000,
+}
+
+TRANSACTIONS_PER_PAGE = 25
+EXPORT_PDF_MAX_ROWS = 5_000
 
 WSGI_APPLICATION = "Online_Banking_System.wsgi.application"
 ASGI_APPLICATION = "Online_Banking_System.asgi.application"
@@ -136,7 +170,7 @@ CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:63
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TIMEZONE = "Africa/Nairobi"
+CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_ROUTES = {"fraud.tasks.training.*": {"queue": "ml"}}
@@ -152,7 +186,7 @@ CELERY_BEAT_SCHEDULE = {
 # in-process after commit (tests, or running without a broker).
 # ---------------------------------------------------------------------------
 EVENT_BUS = os.getenv("EVENT_BUS", "kafka")
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9094")
 KAFKA_TOPIC_PARTITIONS = int(os.getenv("KAFKA_TOPIC_PARTITIONS", "3"))
 KAFKA_CONSUMER_MAX_RETRIES = 3
 
@@ -189,7 +223,6 @@ AUTHENTICATION_BACKENDS = [
 
 LANGUAGE_CODE = "en-GB"
 
-TIME_ZONE = "Africa/Nairobi"
 
 USE_I18N = True
 
@@ -203,8 +236,8 @@ EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 
 UNFOLD = {
-    "SITE_TITLE": "Kwetu Bank",
-    "SITE_HEADER": "Kwetu Bank",
+    "SITE_TITLE": "Online_Banking_System.admin_ui.site_title",
+    "SITE_HEADER": "Online_Banking_System.admin_ui.site_title",
     "SITE_SUBHEADER": "Back office",
     "SITE_SYMBOL": "account_balance",
     "SITE_URL": "/",

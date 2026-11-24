@@ -1,8 +1,8 @@
 {% load static %}
 <aside class="sidebar" id="sidebar">
     <div class="sidebar__brand">
-        <span class="sidebar__mark">J</span>
-        <span class="sidebar__name">Jumla Bank</span>
+        <span class="sidebar__mark">{{ institution.mark }}</span>
+        <span class="sidebar__name">{{ institution.name }}</span>
     </div>
 
     <nav class="sidebar__nav">
@@ -10,21 +10,24 @@
         <a href="{% url 'bank:dashboard' %}" class="sidebar__link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
             <span class="sidebar__icon" data-icon="grid"></span> Overview
         </a>
-        <a href="#" class="sidebar__link">
+        <a href="{% url 'bank:transactions' %}" class="sidebar__link{% if request.resolver_match.namespace == 'bank' and request.resolver_match.url_name == 'transactions' %} is-active{% endif %}">
             <span class="sidebar__icon" data-icon="swap"></span> Transactions
         </a>
-        <a href="#" class="sidebar__link">
+        <a href="{% url 'bank:beneficiaries' %}" class="sidebar__link{% if request.resolver_match.namespace == 'bank' and request.resolver_match.url_name == 'beneficiaries' %} is-active{% endif %}">
+            <span class="sidebar__icon" data-icon="user"></span> Beneficiaries
+        </a>
+        <a href="{% url 'bank:cards' %}" class="sidebar__link{% if request.resolver_match.namespace == 'bank' and request.resolver_match.url_name == 'cards' %} is-active{% endif %}">
             <span class="sidebar__icon" data-icon="card"></span> Cards
         </a>
-        <a href="#" class="sidebar__link">
+        <a href="{% url 'loans:index' %}" class="sidebar__link{% if request.resolver_match.namespace == 'loans' and request.resolver_match.url_name == 'index' %} is-active{% endif %}">
             <span class="sidebar__icon" data-icon="wallet"></span> Loans
         </a>
-        <a href="#" class="sidebar__link">
+        <a href="{% url 'bank:statements' %}" class="sidebar__link{% if request.resolver_match.namespace == 'bank' and request.resolver_match.url_name == 'statements' %} is-active{% endif %}">
             <span class="sidebar__icon" data-icon="chart"></span> Statements
         </a>
 
         <p class="sidebar__group">Account</p>
-        <a href="{% url 'accounts:profile-detail' %}" class="sidebar__link {% if request.resolver_match.url_name in 'profile,profile_edit,profile_delete' %}is-active{% endif %}">
+        <a href="{% url 'accounts:profile-detail' %}" class="sidebar__link{% if request.resolver_match.namespace == 'accounts' and request.resolver_match.url_name in 'profile-detail profile-update account-update' %} is-active{% endif %}">
             <span class="sidebar__icon" data-icon="user"></span> Profile &amp; KYC
         </a>
         <a href="{% url 'bank:settings' %}#security" class="sidebar__link">
