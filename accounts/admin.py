@@ -1,6 +1,5 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
-from django.contrib import messages
 from django.utils.translation import ngettext
 
 from .forms import AccountRegistrationForm

@@ -6,4 +6,4 @@ class AccountsConfig(AppConfig):
     name = "accounts"
 
     def ready(self):
-        import accounts.signals
+        from accounts import signals  # noqa: F401  (registers profile provisioning)

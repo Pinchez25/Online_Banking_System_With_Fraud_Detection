@@ -1,6 +1,5 @@
 from .forms import AccountRegistrationForm
 
-
 # from .models import Account
 
 

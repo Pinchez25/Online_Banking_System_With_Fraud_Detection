@@ -18,9 +18,9 @@ class DummyMessageRequest(RequestFactory):
 
 
 def add_session_and_messages(request):
-    setattr(request, "session", {})
+    request.session = {}
     messages = FallbackStorage(request)
-    setattr(request, "_messages", messages)
+    request._messages = messages
     return request
 
 

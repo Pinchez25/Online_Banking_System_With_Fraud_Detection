@@ -1,11 +1,11 @@
 import logging
 
-from PIL import Image, ImageOps
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django_user_agents.utils import get_user_agent
+from PIL import Image, ImageOps
 
 logger = logging.getLogger(__name__)
 
