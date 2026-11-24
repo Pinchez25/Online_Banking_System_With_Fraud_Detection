@@ -2,6 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView,
@@ -15,8 +16,10 @@ from django.contrib.auth.views import (
 )
 from django.db import transaction
 from django.db.models import prefetch_related_objects
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, FormView, TemplateView, UpdateView
 
 from .forms import (
@@ -225,6 +228,13 @@ class AccountPasswordResetConfirmView(PasswordResetConfirmView):
 
 class AccountPasswordResetCompleteView(PasswordResetCompleteView):
     template_name = "accounts/password_reset_complete.html"
+
+
+@login_required
+@require_POST
+def session_keepalive(request):
+    """Extends the idle timeout: SESSION_SAVE_EVERY_REQUEST re-saves the session on this request."""
+    return HttpResponse(status=204)
 
 
 class AccountBlockedView(TemplateView):

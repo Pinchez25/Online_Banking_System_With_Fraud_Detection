@@ -33,6 +33,7 @@
 </div>
 
 {% block modals %}{% endblock %}
+{% include "partials/session_timeout.html" %}
 
 <script src="{% static 'js/dashboard.js' %}" defer></script>
 {% block extra_js %}{% endblock %}

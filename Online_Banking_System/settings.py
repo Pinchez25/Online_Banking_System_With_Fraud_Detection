@@ -61,6 +61,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'accounts.middleware.BlockedAccountMiddleware',
+    'accounts.middleware.SessionLifetimeMiddleware',
 
 ]
 
@@ -68,11 +69,17 @@ ROOT_URLCONF = "Online_Banking_System.urls"
 
 # Sliding 5-minute inactivity timeout: each request re-saves the session,
 # pushing its expiry forward.
-SESSION_EXPIRE_SECONDS = 300
+SESSION_IDLE_TIMEOUT_SECONDS = 300
+SESSION_ABSOLUTE_TIMEOUT_SECONDS = 8 * 60 * 60  # re-authenticate at least once per working day
+SESSION_TIMEOUT_WARNING_SECONDS = 60  # the page warns this long before the idle timeout
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_COOKIE_AGE = SESSION_EXPIRE_SECONDS
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = SESSION_IDLE_TIMEOUT_SECONDS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 TEMPLATES = [
     {

@@ -243,3 +243,12 @@
 @media (max-width: 640px) {
     .form-grid, .field-row { grid-template-columns: 1fr; }
 }
+
+.auth-notice {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm, 8px);
+    background: var(--gold-soft, #F6ECD6);
+    color: #6E5112;
+    font-size: 13px;
+}

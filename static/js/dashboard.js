@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     wireSidebar();
     wirePopovers();
     wireModals();
+    wireSessionTimeout();
     wireLoanQuote();
     wireMockForms();
     wireMessages();
@@ -227,6 +228,70 @@ function wirePasswordToggles() {
             btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
         });
     });
+}
+
+function getCookie(name) {
+    return document.cookie.split('; ').find((c) => c.startsWith(`${name}=`))?.split('=')[1] ?? '';
+}
+
+// Mirrors the server's sliding idle timeout: warns before it expires and lets the
+// user extend it. Tabs share the last-activity time so one active tab keeps all alive.
+function wireSessionTimeout() {
+    const dialog = document.querySelector('[data-session-timeout]');
+    if (!dialog) return;
+
+    const idleMs = Number(dialog.dataset.idleSeconds) * 1000;
+    const warningMs = Number(dialog.dataset.warningSeconds) * 1000;
+    const countdown = dialog.querySelector('[data-session-countdown]');
+    const storageKey = 'sessionLastActivity';
+    let lastActivity = Date.now();
+    let tick;
+
+    const remember = (time) => {
+        lastActivity = time;
+        try { localStorage.setItem(storageKey, String(time)); } catch { /* private mode */ }
+    };
+
+    const signOut = () => {
+        window.location.assign(`${dialog.dataset.signedOutUrl}&next=${encodeURIComponent(location.pathname)}`);
+    };
+
+    const update = () => {
+        const remaining = lastActivity + idleMs - Date.now();
+        if (remaining <= 0) {
+            clearInterval(tick);
+            signOut();
+        } else if (remaining <= warningMs) {
+            dialog.hidden = false;
+            countdown.textContent = String(Math.ceil(remaining / 1000));
+        } else {
+            dialog.hidden = true;
+        }
+    };
+
+    dialog.querySelector('[data-session-stay]').addEventListener('click', async () => {
+        const response = await fetch(dialog.dataset.keepaliveUrl, {
+            method: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')},
+            credentials: 'same-origin',
+        });
+        if (response.ok) {
+            remember(Date.now());
+            update();
+        } else {
+            signOut();
+        }
+    });
+
+    window.addEventListener('storage', (event) => {
+        if (event.key === storageKey && event.newValue) {
+            lastActivity = Number(event.newValue);
+            update();
+        }
+    });
+
+    remember(Date.now());
+    tick = setInterval(update, 1000);
 }
 
 // Live monthly-instalment preview on the loan application form.

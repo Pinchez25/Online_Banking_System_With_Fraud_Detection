@@ -11,6 +11,11 @@
 
     <form class="auth-form" method="post" action="{% url 'accounts:login' %}">
         {% csrf_token %}
+        {% if request.GET.reason == "idle" %}
+            <p class="auth-notice" role="status">You were signed out after {{ session_idle_minutes }} minutes of inactivity to protect your account.</p>
+        {% elif request.GET.reason == "expired" %}
+            <p class="auth-notice" role="status">Your session reached its maximum length. Please sign in again.</p>
+        {% endif %}
         {% if form.non_field_errors %}
             <p class="field__error">{{ form.non_field_errors|join:" " }}</p>
         {% endif %}
