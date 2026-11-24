@@ -6,4 +6,4 @@ class BankConfig(AppConfig):
     name = "bank"
 
     def ready(self):
-        from bank import handlers, signals  # noqa: F401  (register receivers and event subscriptions)
+        from bank import signals  # noqa: F401, PLC0415  (receivers need loaded models; apps.py is imported before they are)
