@@ -176,4 +176,3 @@ class ProfileWorkflowTests(TestCase):
         self.assertIsNotNone(self.account.deactivated_at)
         self.assertTrue(get_user_model().objects.filter(pk=self.account.pk).exists())
         self.assertTrue(get_user_model().objects.get(pk=self.account.pk).profile)
-
