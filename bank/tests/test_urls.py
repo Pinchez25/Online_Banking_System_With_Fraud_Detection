@@ -18,4 +18,3 @@ class TestBankUrls(TestCase):
     def test_send_page(self):
         response = self.client.get(reverse('bank:send-money'))
         self.assertEqual(response.status_code, 302)
-

@@ -39,8 +39,15 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Ruff
-        run: uv run --only-dev ruff check --output-format=github .
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Pre-commit hooks
+        # Migrations are checked against a real database in the unit-test job.
+        run: uv run --only-dev pre-commit run --all-files --show-diff-on-failure
+        env:
+          SKIP: django-migrations
       - name: Validate docker-compose.yml
         run: docker compose config --quiet
 

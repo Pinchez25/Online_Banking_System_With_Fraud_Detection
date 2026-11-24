@@ -1,0 +1,38 @@
+default_install_hook_types: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  # Local hooks run the tool versions pinned in uv.lock, the same ones CI uses.
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run --only-dev ruff check --fix --force-exclude
+        language: system
+        types: [python]
+        require_serial: true
+
+      - id: uv-lock
+        name: uv.lock matches pyproject.toml
+        entry: uv lock --check
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: django-migrations
+        name: no missing migrations
+        entry: uv run python manage.py makemigrations --check --dry-run
+        language: system
+        files: (models\.py|/migrations/.*\.py)$
+        pass_filenames: false

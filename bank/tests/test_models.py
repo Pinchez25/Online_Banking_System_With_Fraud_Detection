@@ -10,4 +10,3 @@ class TestTransactionModel(TestCase):
 
     def test_transaction_model(self):
         self.assertEqual(self.transaction.__str__(), self.transaction.transaction_id)
-

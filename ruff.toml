@@ -1,5 +1,0 @@
-line-length = 130
-extend-exclude = ["*/migrations/*"]
-
-[lint]
-select = ["E", "F", "W", "I", "B", "UP"]

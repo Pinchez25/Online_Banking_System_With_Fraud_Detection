@@ -25,5 +25,13 @@ dev = [
     "fakeredis>=2.41.0",
     "honcho>=2.0.0",
     "model-bakery>=1.23.3",
+    "pre-commit>=4.7.0",
     "ruff>=0.17.6",
 ]
+
+[tool.ruff]
+line-length = 130
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "PLC0415"]
