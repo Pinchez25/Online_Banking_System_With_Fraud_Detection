@@ -186,7 +186,7 @@ CELERY_BEAT_SCHEDULE = {
 # in-process after commit (tests, or running without a broker).
 # ---------------------------------------------------------------------------
 EVENT_BUS = os.getenv("EVENT_BUS", "kafka")
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9094")
 KAFKA_TOPIC_PARTITIONS = int(os.getenv("KAFKA_TOPIC_PARTITIONS", "3"))
 KAFKA_CONSUMER_MAX_RETRIES = 3
 

@@ -112,10 +112,11 @@ jobs:
         run: |
           uv run python manage.py migrate --noinput
           uv run python manage.py kafka_topics
-      - name: Start Celery worker and consumers
+      - name: Start Celery worker, beat and consumers
         run: |
           mkdir -p logs
           nohup uv run celery -A Online_Banking_System worker -Q celery -c 2 --loglevel=INFO > logs/worker.log 2>&1 &
+          nohup uv run celery -A Online_Banking_System beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule > logs/beat.log 2>&1 &
           nohup uv run python manage.py run_consumer fraud-scorer > logs/fraud-scorer.log 2>&1 &
           nohup uv run python manage.py run_consumer bank-screening > logs/bank-screening.log 2>&1 &
       - name: Smoke test the pipeline
