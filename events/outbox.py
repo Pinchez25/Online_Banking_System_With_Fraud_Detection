@@ -21,7 +21,7 @@ def enqueue(topic: str, *, key, payload: dict) -> OutboxEvent:
 
 
 def _trigger_relay():
-    from events.tasks import relay_outbox
+    from events.tasks import relay_outbox  # circular: events.tasks imports this module
 
     try:
         relay_outbox.delay()

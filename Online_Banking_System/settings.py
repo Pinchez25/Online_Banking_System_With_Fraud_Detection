@@ -311,4 +311,4 @@ if TESTING:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
     EVENT_BUS = "inline"
-    FRAUD = {**FRAUD, "PROFILE_REDIS_URL": None}  # None -> in-process fakeredis
+    TEST_RUNNER = "Online_Banking_System.test_runner.TestRunner"

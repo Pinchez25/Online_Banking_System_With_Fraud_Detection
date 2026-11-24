@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -8,6 +9,8 @@ from django.test import TestCase
 from accounts.models import Account
 from bank.models import Transaction
 from bank.services.approval import (
+    _lock_account,
+    _validate_transaction_amount,
     approve_batch,
     approve_transaction,
     reject_batch,
@@ -296,7 +299,6 @@ class TransactionApprovalTests(TestCase):
         )
 
     def test_zero_amount_is_rejected(self):
-        from bank.services.approval import _validate_transaction_amount
 
         with self.assertRaisesMessage(
                 ValueError,
@@ -305,7 +307,6 @@ class TransactionApprovalTests(TestCase):
             _validate_transaction_amount(Decimal("0.00"))
 
     def test_negative_amount_is_rejected(self):
-        from bank.services.approval import _validate_transaction_amount
 
         with self.assertRaisesMessage(
                 ValueError,
@@ -314,7 +315,6 @@ class TransactionApprovalTests(TestCase):
             _validate_transaction_amount(Decimal("-100.00"))
 
     def test_non_finite_amount_is_rejected(self):
-        from bank.services.approval import _validate_transaction_amount
 
         with self.assertRaisesMessage(
                 ValueError,
@@ -323,7 +323,6 @@ class TransactionApprovalTests(TestCase):
             _validate_transaction_amount(Decimal("NaN"))
 
     def test_none_amount_is_rejected(self):
-        from bank.services.approval import _validate_transaction_amount
 
         with self.assertRaisesMessage(
                 ValueError,
@@ -351,9 +350,7 @@ class TransactionApprovalTests(TestCase):
         )
 
     def test_missing_sender_account_is_handled(self):
-        import uuid
 
-        from bank.services.approval import _lock_account
 
         with self.assertRaisesMessage(
                 ValueError,

@@ -7,6 +7,7 @@ import logging
 from functools import cache
 from typing import Protocol
 
+from confluent_kafka import Producer
 from django.conf import settings
 from django.db import transaction
 
@@ -36,8 +37,6 @@ def decode(raw: bytes) -> dict:
 
 class KafkaBus:
     def __init__(self, bootstrap_servers: str):
-        from confluent_kafka import Producer
-
         self._producer = Producer({
             "bootstrap.servers": bootstrap_servers,
             "enable.idempotence": True,  # implies acks=all, no duplicates on retry

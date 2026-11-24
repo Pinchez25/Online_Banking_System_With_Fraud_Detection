@@ -35,12 +35,7 @@ def _amount_sum(members) -> float:
 
 @cache
 def get_profile_redis() -> redis.Redis:
-    url = settings.FRAUD["PROFILE_REDIS_URL"]
-    if url is None:
-        import fakeredis
-
-        return fakeredis.FakeRedis(decode_responses=True)
-    return redis.Redis.from_url(url, decode_responses=True)
+    return redis.Redis.from_url(settings.FRAUD["PROFILE_REDIS_URL"], decode_responses=True)
 
 
 class ProfileStore:
