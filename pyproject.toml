@@ -37,4 +37,5 @@ dev = [
     "fakeredis>=2.41.0",
     "honcho>=2.0.0",
     "model-bakery>=1.23.3",
+    "ruff>=0.17.6",
 ]

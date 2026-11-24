@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch/PR supersedes the running pipeline.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Values the settings module requires; nothing here is a real secret.
+  DEBUG: "false"
+  SECRET_KEY: django-insecure-ci-only
+  POSTGRES_DB: bank
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_HOST: localhost
+  EMAIL_HOST: localhost
+  EMAIL_PORT: "1025"
+  EMAIL_USE_TLS: "false"
+  EMAIL_HOST_USER: ""
+  EMAIL_HOST_PASSWORD: ""
+  UV_PYTHON: "3.14"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Ruff
+        run: uv run --only-dev ruff check --output-format=github .
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Tests use in-memory cache/channels/email, fakeredis, eager Celery and the
+    # inline event bus, so Postgres is the only service they need.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: bank
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_PORT: "5432"
+      DB_CONN_MAX_AGE: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: System check
+        run: uv run python manage.py check --fail-level WARNING
+      - name: No missing migrations
+        run: uv run python manage.py makemigrations --check --dry-run
+      - name: Run tests
+        run: uv run python manage.py test --noinput
+
+  integration:
+    name: Pipeline integration (Kafka)
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Exercises what unit tests replace with fakes: the outbox relay through
+    # Celery, real Kafka topics and both consumer groups. No trained model is
+    # available here, so the fraud engine runs rules-only.
+    env:
+      POSTGRES_PORT: "5433"
+      EVENT_BUS: kafka
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Start Postgres, Redis and Kafka
+        run: docker compose up --detach --wait postgres redis kafka
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Migrate and create topics
+        run: |
+          uv run python manage.py migrate --noinput
+          uv run python manage.py kafka_topics
+      - name: Start Celery worker and consumers
+        run: |
+          mkdir -p logs
+          nohup uv run celery -A Online_Banking_System worker -Q celery -c 2 --loglevel=INFO > logs/worker.log 2>&1 &
+          nohup uv run python manage.py run_consumer fraud-scorer > logs/fraud-scorer.log 2>&1 &
+          nohup uv run python manage.py run_consumer bank-screening > logs/bank-screening.log 2>&1 &
+      - name: Smoke test the pipeline
+        run: uv run python manage.py smoke_pipeline --timeout 90
+      - name: Upload process logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs
+          path: logs/
+          retention-days: 7
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color kafka redis postgres | tail -n 200
