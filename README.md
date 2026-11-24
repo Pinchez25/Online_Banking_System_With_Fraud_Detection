@@ -21,10 +21,12 @@ The project also includes a machine learning fraud model and real-time updates u
 - Python 3.14+
 - Django 6+
 - PostgreSQL
-- Redis
+- Redis (cache, Channels, Celery broker, behavioural profiles)
+- Apache Kafka (KRaft) with a transactional outbox
+- Celery (outbox relay, model-training DAG)
 - Django Channels + Daphne
 - HTML, CSS, JavaScript
-- scikit-learn, pandas, joblib-based fraud detection pipeline
+- scikit-learn (HistGradientBoosting), pandas, PyArrow; trained on PaySim
 
 ## Key Features
 
@@ -38,130 +40,107 @@ The project also includes a machine learning fraud model and real-time updates u
 - Email-based authentication and password reset support
 - Docker-based local PostgreSQL and Mailpit setup
 
-## Project Structure
+## Architecture
+
+Money never moves on request. Every deposit, withdrawal and transfer is screened by an
+event-driven fraud pipeline first, then waits for staff approval.
 
 ```text
-bank_system/
-├── accounts/                  # Authentication, profile, password reset logic
-├── bank/                     # Banking dashboard, transfers, notifications, ML integration
-├── data/                     # Local data and Mailpit persistence
-├── dataset and notebook/     # Fraud model assets and notebook
-├── ml_training/             # Model training scripts
-├── media/                   # Uploaded profile images
-├── Online_Banking_System/    # Django project settings and URLs
-├── static/                  # CSS, JS, images
-├── templates/               # App templates and shared layout
-├── docker-compose.yml       # Local Postgres + Mailpit services
-├── manage.py                # Django management entrypoint
-├── pyproject.toml           # Python dependencies
-├── README.md                # Project documentation
-└── requirements-like config in pyproject.toml
+ Customer ──► Django view ──► request_transaction()  ─┐ one DB transaction
+                                 Transaction(SCREENING)│
+                                 OutboxEvent           ┘
+                                      │ on_commit + beat sweep (Celery)
+                                      ▼
+                       Kafka: bank.transactions.requested.v1   (key = account id)
+                                      │
+                         consumer group "fraud-scorer"
+                   Redis behavioural profile ─► features ─► HistGradientBoosting
+                                      │            └──────► behavioural rules
+                                      ▼   RiskAssessment + OutboxEvent
+                       Kafka: fraud.decisions.v1
+                                      │
+                         consumer group "bank-screening"
+                     allow/review ─► PENDING (approval queue)
+                     block        ─► REJECTED + account frozen + alert/email
 ```
 
-## Prerequisites
+* **Transactional outbox** (`events/`): an event is published if and only if its business
+  change committed. A Celery relay drains it with `SELECT … FOR UPDATE SKIP LOCKED`.
+* **At-least-once with idempotent consumers**: offsets commit after handling; scoring and decision
+  application are no-ops on redelivery. Poison messages go to `<topic>.dlq` after retries.
+* **Behavioural profiles** (`fraud/profiles.py`): per-account Redis hashes, 24h sliding-window
+  sorted sets and payee graphs. One pipelined round trip per score.
+* **Behavioural rules** (`fraud/rules.py`): velocity burst, amount spike (z-score against the
+  account's own history), account drain, large first payment to a new payee, unusual hour,
+  pass-through (mule cash-out) and recipient fan-in. Combined with the model by noisy-OR.
+  Rules alone escalate to *manual review*; only the model's high-precision band auto-blocks.
+* **One feature contract** (`fraud/features.py`): training (vectorised over 6.3M PaySim rows) and
+  serving (one event against Redis) produce the same raw signals and share the same feature code.
+  `fraud.tests.test_parity` asserts they agree exactly.
+* **Model registry** (`FraudModelVersion`): champion/challenger promotion on test PR-AUC, one active
+  model, hot-reloaded by scorers. Admin can roll back with one action.
 
-Before starting, make sure you have:
+```text
+events/      outbox, Kafka/inline bus, consumer runner, contracts, topics
+fraud/       profiles, rules, engine, registry, Kafka handlers, training pipeline + Celery DAG
+bank/        ledger models, request/approval/screening services, views, admin
+accounts/    users, profiles, auth, blocked-account middleware
+ml/data/     PaySim CSV (git-ignored)      ml/artifacts/  parquet cache + model runs (git-ignored)
+```
 
-- Python 3.14+
-- uv installed
-- PostgreSQL running locally or via Docker
-- Redis running locally or via Docker
-- Git
+## Dataset
+
+[PaySim](https://www.kaggle.com/datasets/ealaxi/paysim1): 6.3M simulated mobile-money transactions.
+Save the CSV as `ml/data/paysim.csv`. PaySim types map onto the bank's: `CASH_IN`→deposit,
+`CASH_OUT`/`PAYMENT`/`DEBIT`→withdrawal, `TRANSFER`→transfer.
 
 ## Local Development Setup
 
-1. Clone the repository:
-
-```bash
-git clone <repository-url>
-cd bank_system
-```
-
-2. Install Python dependencies:
-
 ```bash
 uv sync
-```
-
-3. Create a `.env` file in the project root with the required environment variables. Example:
-
-```env
-DEBUG=true
-SECRET_KEY=your-secret-key
-ALLOWED_HOSTS=localhost,127.0.0.1
-CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
-POSTGRES_DB=bank
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5433
-DB_CONN_MAX_AGE=60
-REDIS_URL=redis://127.0.0.1:6379/0
-CHANNEL_REDIS_URL=redis://127.0.0.1:6379/1
-EMAIL_HOST=localhost
-EMAIL_PORT=1025
-EMAIL_USE_TLS=false
-EMAIL_HOST_USER=
-EMAIL_HOST_PASSWORD=
-DJANGO_LOG_LEVEL=INFO
-```
-
-4. Start the supporting services:
-
-```bash
-docker compose up -d postgres mailpit
-```
-
-This starts:
-
-- PostgreSQL on `localhost:5433`
-- Mailpit SMTP on `localhost:1025`
-- Mailpit web UI on `http://localhost:8025`
-
-> Redis is required for caching and Channels. If you are not already running Redis locally, start it separately or
-> uncomment the Redis service in `docker-compose.yml` before running the app.
-
-5. Apply migrations:
-
-```bash
+cp .env.example .env
+docker compose up -d                 # Postgres, Redis (:6380), Kafka KRaft (:9094), Kafka UI (:8089), Mailpit
 uv run python manage.py migrate
+uv run python manage.py kafka_topics
+uv run python manage.py train_fraud_model --inline     # ~3-5 min, peaks around 3-4 GB RAM
+uv run honcho start                  # web, Celery workers + beat, both Kafka consumer groups
 ```
 
-6. Start the development server:
+| Process          | What it does                                                    |
+|------------------|-----------------------------------------------------------------|
+| `web`            | Daphne (HTTP + WebSockets) on http://127.0.0.1:8000             |
+| `worker`         | Celery default queue: outbox relay                              |
+| `ml_worker`      | Celery `ml` queue, concurrency 1 (memory-bound training)        |
+| `beat`           | Outbox sweep every 10s, published-outbox purge hourly           |
+| `fraud_scorer`   | `run_consumer fraud-scorer`                                     |
+| `bank_screening` | `run_consumer bank-screening`                                   |
+
+No Kafka handy? Set `EVENT_BUS=inline` and handlers run in-process after commit (tests use this).
+
+### Training as a Celery DAG
+
+```text
+prepare_dataset ─► build_frame ─┬─► train_candidate(hgb_balanced) ─┐
+                                ├─► train_candidate(hgb)          ─┼─► select_and_register
+                                └─► train_candidate(logreg)       ─┘
+```
 
 ```bash
-uv run python manage.py runserver
+uv run python manage.py train_fraud_model --wait     # dispatch to the `ml` queue
+uv run python manage.py rebuild_fraud_profiles       # rebuild Redis profiles from the ledger
 ```
 
-Then open:
-
-- http://127.0.0.1:8000/
-
-## Optional: Fraud Model Setup
-
-The project uses a fraud detection model from the `dataset and notebook/models` folder.
-
-If needed, you can retrain or regenerate the model using the scripts and notebook in:
-
-- `ml_training/train_fraud_model.py`
-- `dataset and notebook/fraud_detection_ml_pipeline.ipynb`
-
-The model path is configured via `FRAUD_MODEL_SOURCE` in the Django settings, defaulting to the local joblib file stored
-in the project.
+Thresholds come from validation data: *review* maximises F2 (recall-weighted) and *block* is the
+lowest score with at least 97% precision. Metrics are reported on an untouched, out-of-time test split.
 
 ## Running Tests
 
-Run the test suite with:
-
 ```bash
-uv run python manage.py test
+uv run python manage.py test --noinput
 ```
 
-To run a targeted test module:
-
-```bash
-uv run python manage.py test bank.tests.test_realtime_notifications
-```
+Tests use in-memory cache/channels/email, fakeredis profiles, eager Celery and the inline bus,
+so no containers are required.
 
 ## Useful Commands
 
@@ -187,7 +166,7 @@ uv run python manage.py check
 
 - The app uses `EMAIL_HOST` and `EMAIL_PORT` for password reset messages and notifications.
 - Mailpit is useful for local development because it captures outbound emails without sending them externally.
-- Redis is required for Django cache and the channel layer used by real-time notification features.
+- Redis backs the cache, Channels, Celery and the fraud profiles (separate DB numbers).
 - The app is configured for Nairobi time (`Africa/Nairobi`) and uses a custom `Account` model as the user model.
 
 ## Production Considerations
