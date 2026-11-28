@@ -4,6 +4,7 @@
      data-idle-seconds="{{ session_idle_seconds }}"
      data-warning-seconds="{{ session_warning_seconds }}"
      data-keepalive-url="{% url 'accounts:session-keepalive' %}"
+     data-logout-url="{% url 'accounts:logout' %}"
      data-signed-out-url="{% url 'accounts:login' %}?reason=idle">
     <div class="modal__panel">
         <div class="modal__head">
