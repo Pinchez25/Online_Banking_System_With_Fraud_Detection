@@ -38,7 +38,6 @@ LOGIN_URL = reverse_lazy('accounts:login')
 LOGIN_REDIRECT_URL = reverse_lazy('bank:dashboard')
 
 INSTALLED_APPS = [
-    "daphne",
     "channels",
     "unfold",  # must precede django.contrib.admin to override its templates
     "unfold.contrib.filters",
