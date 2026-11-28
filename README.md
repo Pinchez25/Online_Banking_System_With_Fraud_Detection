@@ -1,5 +1,4 @@
-A Django-based online banking system with user authentication, account management, money transfers, transaction
-workflows, real-time notifications, and fraud detection powered by a machine learning model.
+# A Django-based online banking system with user authentication, account management, money transfers, transaction workflows, real-time notifications, and fraud detection powered by a machine learning model
 
 ## Overview
 
@@ -147,7 +146,7 @@ cache, channels, email, fraud profiles, Celery and the event bus are in-memory o
 (`Online_Banking_System/test_settings.py`).
 
 | Layer | Directory | What it covers |
-|-------|-----------|----------------|
+| ------- | ----------- | ---------------- |
 | Unit | `tests/unit` | Pure logic: ledger, fraud rules and features, loan maths, status graph, documents |
 | Integration | `tests/integration` | Services, views, admin, WebSockets and the event pipeline against the database |
 | End-to-end | `tests/e2e` | Customer journeys in a real browser (Playwright) against a live server |
