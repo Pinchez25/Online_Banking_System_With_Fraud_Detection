@@ -54,7 +54,7 @@ def get_login_agent(request) -> None:
     try:
         text_body = render_to_string("emails/login_agent.txt", context)
         html_body = render_to_string("emails/login_agent.html", context)
-        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER)
+        from_email = settings.DEFAULT_FROM_EMAIL
 
         email = EmailMultiAlternatives(
             subject=f"{context['institution'].name}: login alert for {account.username}",
@@ -63,7 +63,7 @@ def get_login_agent(request) -> None:
             to=[account.email],
         )
         email.attach_alternative(html_body, "text/html")
-        email.send(fail_silently=False)
+        email.send()
     except Exception:
         logger.exception("Failed to send login alert email for account %s", account.pk)
     else:

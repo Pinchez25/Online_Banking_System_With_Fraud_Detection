@@ -64,9 +64,14 @@ def _block(txn: Transaction, decision: FraudDecision) -> None:
     logger.warning("Blocked %s for account %s risk=%.3f reasons=%s",
                    txn.transaction_id, txn.account_id, decision.risk_score, decision.reasons)
 
-    recipient = settings.FRAUD["ALERT_EMAIL"]
-    if recipient:
-        transaction.on_commit(lambda: send_mail(
+    if settings.FRAUD["ALERT_EMAIL"]:
+        transaction.on_commit(lambda: _alert_fraud_team(txn, decision))
+
+
+def _alert_fraud_team(txn: Transaction, decision: FraudDecision) -> None:
+    """Best effort: a mail outage must not undo or delay the block."""
+    try:
+        send_mail(
             subject=f"Fraud block: {txn.transaction_id}",
             message=(
                 f"Account {txn.account_id} was blocked.\nAmount: {format_money(txn.amount)}\n"
@@ -74,6 +79,7 @@ def _block(txn: Transaction, decision: FraudDecision) -> None:
                 "Reasons:\n" + "\n".join(f"  - {r}" for r in decision.reasons or ["model score"])
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[recipient],
-            fail_silently=True,
-        ))
+            recipient_list=[settings.FRAUD["ALERT_EMAIL"]],
+        )
+    except Exception:
+        logger.exception("Could not email the fraud team about %s", txn.transaction_id)
