@@ -32,7 +32,7 @@ repos:
 
       - id: django-migrations
         name: no missing migrations
-        entry: uv run python manage.py makemigrations --check --dry-run
+        entry: uv run bank_manage makemigrations --check --dry-run
         language: system
         files: (models\.py|/migrations/.*\.py)$
         pass_filenames: false

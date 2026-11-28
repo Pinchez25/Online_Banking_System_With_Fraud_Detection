@@ -8,8 +8,8 @@ from bank.services.onboarding import approve_application
 from tests.factories import AccountFactory, BeneficiaryFactory
 
 
-def test_an_applicant_waits_for_approval_then_deposits(visit):
-    page = visit("/accounts/register/")
+def test_an_applicant_waits_for_approval_then_deposits(visit, page):
+    visit(page, "/accounts/register/")
     for field, value in {"first_name": "Amina", "last_name": "Otieno", "email": "amina@example.com",
                          "national_id": "31234567", "username": "amina", "password1": "S3cure-pass-phrase",
                          "password2": "S3cure-pass-phrase"}.items():

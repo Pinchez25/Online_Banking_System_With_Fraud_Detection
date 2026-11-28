@@ -10,4 +10,6 @@ CELERY_TASK_EAGER_PROPAGATES = True
 EVENT_BUS = "inline"
 ALLOW_SELF_APPROVAL = False
 SESSION_COOKIE_SECURE = False
+STORAGES = {**STORAGES, "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}}  # noqa: F405
+WHITENOISE_USE_FINDERS = True
 CSRF_COOKIE_SECURE = False

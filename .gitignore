@@ -179,3 +179,9 @@ cython_debug/
 # ML datasets and trained artifacts (reproducible via `manage.py train_fraud_model`)
 ml/data/
 ml/artifacts/
+
+# collectstatic output
+/staticfiles/
+
+# marimo session cache
+__marimo__/

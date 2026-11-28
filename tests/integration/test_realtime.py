@@ -1,21 +1,19 @@
 import pytest
 from asgiref.sync import async_to_sync
 from channels.db import database_sync_to_async
-from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import AnonymousUser
 from django.db import transaction
 
 from bank.consumers import NotificationConsumer
 from bank.models import Notification
 from tests.factories import AccountFactory, NotificationFactory
+from tests.websocket import WebsocketClient
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
 
 def socket_for(user):
-    communicator = WebsocketCommunicator(NotificationConsumer.as_asgi(), "/ws/notifications/")
-    communicator.scope["user"] = user
-    return communicator
+    return WebsocketClient(NotificationConsumer.as_asgi(), "/ws/notifications/", user)
 
 
 @database_sync_to_async

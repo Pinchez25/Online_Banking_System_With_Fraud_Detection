@@ -20,7 +20,7 @@ for customers to:
 - Redis (cache, Channels, Celery broker, behavioural profiles)
 - Apache Kafka (KRaft) with a transactional outbox
 - Celery (outbox relay, model-training DAG)
-- Django Channels + Daphne
+- Django Channels, served by Gunicorn with Uvicorn workers; WhiteNoise for static files
 - HTML, CSS, JavaScript
 - scikit-learn (HistGradientBoosting), pandas, PyArrow; trained on PaySim
 
@@ -106,15 +106,15 @@ uv sync
 uv run pre-commit install            # ruff, hygiene, lockfile and migration checks on every commit
 cp .env.example .env
 docker compose up -d                 # Postgres, Redis (:6380), Kafka KRaft (:9094), Kafka UI (:8089), Mailpit
-uv run python manage.py migrate
-uv run python manage.py kafka_topics
-uv run python manage.py train_fraud_model --inline     # ~3-5 min, peaks around 3-4 GB RAM
+uv run bank_manage migrate
+uv run bank_manage kafka_topics
+uv run bank_manage train_fraud_model --inline     # ~3-5 min, peaks around 3-4 GB RAM
 uv run honcho start                  # web, Celery workers + beat, both Kafka consumer groups
 ```
 
 | Process          | What it does                                                 |
 |------------------|--------------------------------------------------------------|
-| `web`            | `runserver` on Daphne (HTTP, WebSockets, auto-reload), :8000 |
+| `web`            | Gunicorn + Uvicorn workers (HTTP, WebSockets; auto-reload when `DEBUG`), :8000 |
 | `worker`         | Celery default queue: outbox relay                           |
 | `ml_worker`      | Celery `ml` queue, concurrency 1 (memory-bound training)     |
 | `beat`           | Outbox sweep every 10s, published-outbox purge hourly        |
@@ -132,12 +132,22 @@ prepare_dataset ─► build_frame ─┬─► train_candidate(hgb_balanced) �
 ```
 
 ```bash
-uv run python manage.py train_fraud_model --wait     # dispatch to the `ml` queue
-uv run python manage.py rebuild_fraud_profiles       # rebuild Redis profiles from the ledger
+uv run bank_manage train_fraud_model --wait     # dispatch to the `ml` queue
+uv run bank_manage rebuild_fraud_profiles       # rebuild Redis profiles from the ledger
 ```
 
 Thresholds come from validation data: *review* maximises F2 (recall-weighted) and *block* is the
 lowest score with at least 97% precision. Metrics are reported on an untouched, out-of-time test split.
+
+## Exploring the Model
+
+`notebooks/fraud_training.py` is a [marimo](https://marimo.io) notebook that walks through training
+with the project's own code: the dataset, features, candidate models, precision-recall curves,
+thresholds, and feature importance. It reuses the cached dataset and the latest run's features.
+
+```bash
+uv run marimo edit notebooks/fraud_training.py
+```
 
 ## Running Tests
 
@@ -160,22 +170,33 @@ uv run playwright install chromium # once, before the first e2e run
 
 ## Useful Commands
 
+`bank_manage` is this project's management command (installed by `uv sync`), used in place of
+`python manage.py`.
+
 Create a superuser:
 
 ```bash
-uv run python manage.py createsuperuser
+uv run bank_manage createsuperuser
 ```
 
-Collect static files for production:
+Collect static files for production (WhiteNoise serves the compressed, hashed copies;
+in development it serves the source files directly):
 
 ```bash
-uv run python manage.py collectstatic --noinput
+uv run bank_manage collectstatic --noinput
+```
+
+Run the web server on its own (settings in `gunicorn.conf.py`, overridable with `GUNICORN_BIND`,
+`GUNICORN_WORKERS`, `GUNICORN_TIMEOUT` and `GUNICORN_LOG_LEVEL`):
+
+```bash
+uv run gunicorn
 ```
 
 Run Django's system checks:
 
 ```bash
-uv run python manage.py check
+uv run bank_manage check
 ```
 
 ## Bank Configuration

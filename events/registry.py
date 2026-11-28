@@ -1,7 +1,7 @@
 """Handler registry: maps topics to handlers, grouped by consumer group.
 
 A consumer group is one independently-scaled consumer process
-(`manage.py run_consumer <group>`); the inline bus runs every group.
+(`bank_manage run_consumer <group>`); the inline bus runs every group.
 """
 from __future__ import annotations
 
