@@ -80,9 +80,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
       - name: System check
-        run: uv run python manage.py check --fail-level WARNING
+        run: uv run bank_manage check --fail-level WARNING
       - name: No missing migrations
-        run: uv run python manage.py makemigrations --check --dry-run
+        run: uv run bank_manage makemigrations --check --dry-run
       - name: Run tests
         run: uv run pytest -m "not e2e" --cov-fail-under=85
 
@@ -148,17 +148,17 @@ jobs:
         run: uv sync --locked
       - name: Migrate and create topics
         run: |
-          uv run python manage.py migrate --noinput
-          uv run python manage.py kafka_topics
+          uv run bank_manage migrate --noinput
+          uv run bank_manage kafka_topics
       - name: Start Celery worker, beat and consumers
         run: |
           mkdir -p logs
           nohup uv run celery -A Online_Banking_System worker -Q celery -c 2 --loglevel=INFO > logs/worker.log 2>&1 &
           nohup uv run celery -A Online_Banking_System beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule > logs/beat.log 2>&1 &
-          nohup uv run python manage.py run_consumer fraud-scorer > logs/fraud-scorer.log 2>&1 &
-          nohup uv run python manage.py run_consumer bank-screening > logs/bank-screening.log 2>&1 &
+          nohup uv run bank_manage run_consumer fraud-scorer > logs/fraud-scorer.log 2>&1 &
+          nohup uv run bank_manage run_consumer bank-screening > logs/bank-screening.log 2>&1 &
       - name: Smoke test the pipeline
-        run: uv run python manage.py smoke_pipeline --timeout 90
+        run: uv run bank_manage smoke_pipeline --timeout 90
       - name: Upload process logs
         if: failure()
         uses: actions/upload-artifact@v7

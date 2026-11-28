@@ -36,7 +36,7 @@
                     <dt class="text-subtle">Thresholds</dt><dd class="font-medium text-important">{{ active_model.review_threshold|floatformat:2 }} / {{ active_model.block_threshold|floatformat:2 }}</dd>
                 </dl>
             {% else %}
-                {% component "unfold/components/text.html" %}No active model: transactions are scored by behavioural rules only. Run <code>manage.py train_fraud_model</code>.{% endcomponent %}
+                {% component "unfold/components/text.html" %}No active model: transactions are scored by behavioural rules only. Run <code>bank_manage train_fraud_model</code>.{% endcomponent %}
             {% endif %}
         {% endcomponent %}
     </div>
