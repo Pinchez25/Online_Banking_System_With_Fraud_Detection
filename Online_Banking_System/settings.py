@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -347,20 +346,3 @@ LOGGING = {
         },
     },
 }
-
-# ---------------------------------------------------------------------------
-# Test-run overrides: keep the suite fast and hermetic (no SMTP/Redis needed).
-# PBKDF2's 1.5M iterations cost ~1s per create_user; MD5 is fine for fixtures.
-# ---------------------------------------------------------------------------
-TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
-
-if TESTING:
-    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
-    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
-    CELERY_TASK_ALWAYS_EAGER = True
-    CELERY_TASK_EAGER_PROPAGATES = True
-    EVENT_BUS = "inline"
-    TEST_RUNNER = "Online_Banking_System.test_runner.TestRunner"
-    ALLOW_SELF_APPROVAL = False  # tests must not depend on a developer's local toggle

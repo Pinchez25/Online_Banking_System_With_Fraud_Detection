@@ -23,10 +23,13 @@ dependencies = [
 [dependency-groups]
 dev = [
     "celery-types>=0.26.0",
+    "factory-boy>=3.3.3",
     "fakeredis>=2.41.0",
     "honcho>=2.0.0",
-    "model-bakery>=1.25.0",
     "pre-commit>=4.7.0",
+    "pytest-cov>=7.1.0",
+    "pytest-django>=4.14.0",
+    "pytest-playwright>=0.10.0",
     "ruff>=0.17.6",
 ]
 
@@ -36,3 +39,29 @@ extend-exclude = ["*/migrations/*"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "PLC0415"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "Online_Banking_System.test_settings"
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--no-migrations", "--cov", "--cov-report=term-missing:skip-covered"]
+markers = [
+    "unit: pure logic, no database",
+    "integration: services, views and admin against the database",
+    "e2e: browser journeys against a live server (needs `playwright install chromium`)",
+]
+filterwarnings = [
+    "error::RuntimeWarning",
+    "ignore:Overriding get_action_choices\\(\\) without the 'action_location'::unfold",
+    "ignore:Session-scoped fixtures defined as instance methods are deprecated",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["accounts", "bank", "events", "fraud", "institution", "loans", "Online_Banking_System"]
+omit = ["*/migrations/*", "Online_Banking_System/asgi.py", "Online_Banking_System/wsgi.py",
+        "Online_Banking_System/test_settings.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:"]
