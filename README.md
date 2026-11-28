@@ -142,12 +142,22 @@ lowest score with at least 97% precision. Metrics are reported on an untouched, 
 
 ## Running Tests
 
-```bash
-uv run python manage.py test --noinput
-```
+Tests use pytest with factory_boy factories (`tests/factories.py`) and run against PostgreSQL only:
+cache, channels, email, fraud profiles, Celery and the event bus are in-memory or eager
+(`Online_Banking_System/test_settings.py`).
 
-Tests use in-memory cache/channels/email, fakeredis profiles, eager Celery and the inline bus,
-so no containers are required.
+| Layer | Directory | What it covers |
+|-------|-----------|----------------|
+| Unit | `tests/unit` | Pure logic: ledger, fraud rules and features, loan maths, status graph, documents |
+| Integration | `tests/integration` | Services, views, admin, WebSockets and the event pipeline against the database |
+| End-to-end | `tests/e2e` | Customer journeys in a real browser (Playwright) against a live server |
+
+```bash
+uv run pytest                      # everything, with a coverage report
+uv run pytest -m unit              # or -m integration / -m e2e
+uv run pytest -m "not e2e"         # skip the browser
+uv run playwright install chromium # once, before the first e2e run
+```
 
 ## Useful Commands
 
