@@ -70,20 +70,20 @@ event-driven fraud pipeline first, then waits for staff approval.
                      block        ─► REJECTED + account frozen + alert/email
 ```
 
-* **Transactional outbox** (`events/`): an event is published if and only if its business
+- **Transactional outbox** (`events/`): an event is published if and only if its business
   change committed. A Celery relay drains it with `SELECT … FOR UPDATE SKIP LOCKED`.
-* **At-least-once with idempotent consumers**: offsets commit after handling; scoring and decision
+- **At-least-once with idempotent consumers**: offsets commit after handling; scoring and decision
   application are no-ops on redelivery. Poison messages go to `<topic>.dlq` after retries.
-* **Behavioural profiles** (`fraud/profiles.py`): per-account Redis hashes, 24h sliding-window
+- **Behavioural profiles** (`fraud/profiles.py`): per-account Redis hashes, 24h sliding-window
   sorted sets and payee graphs. One pipelined round trip per score.
-* **Behavioural rules** (`fraud/rules.py`): velocity burst, amount spike (z-score against the
+- **Behavioural rules** (`fraud/rules.py`): velocity burst, amount spike (z-score against the
   account's own history), account drain, large first payment to a new payee, unusual hour,
   pass-through (mule cash-out) and recipient fan-in. Combined with the model by noisy-OR.
   Rules alone escalate to *manual review*; only the model's high-precision band auto-blocks.
-* **One feature contract** (`fraud/features.py`): training (vectorised over 6.3M PaySim rows) and
+- **One feature contract** (`fraud/features.py`): training (vectorised over 6.3M PaySim rows) and
   serving (one event against Redis) produce the same raw signals and share the same feature code.
   `fraud.tests.test_parity` asserts they agree exactly.
-* **Model registry** (`FraudModelVersion`): champion/challenger promotion on test PR-AUC, one active
+- **Model registry** (`FraudModelVersion`): champion/challenger promotion on test PR-AUC, one active
   model, hot-reloaded by scorers. Admin can roll back with one action.
 
 ```text
@@ -174,7 +174,7 @@ uv run python manage.py check
 Nothing about the bank's identity is hard-coded.
 
 | What | Where | Changeable at runtime |
-|------|-------|-----------------------|
+| ------ | ------- | ----------------------- |
 | Name, legal notice, support email and phone | Back office → **Bank profile** (seeded from `BANK_NAME`, `BANK_LEGAL_NOTICE`, `BANK_SUPPORT_EMAIL`, `BANK_SUPPORT_PHONE` on first use) | Yes |
 | Currency code | `BANK_CURRENCY` | No: amounts are stored without a currency |
 | Time zone | `TIME_ZONE` | No |
