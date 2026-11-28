@@ -1,4 +1,4 @@
-# A Django-based online banking system with user authentication, account management, money transfers, transaction workflows, real-time notifications, and fraud detection powered by a machine learning model
+A Django-based online banking system with user authentication, account management, money transfers, transaction workflows, real-time notifications, and fraud detection powered by a machine learning model
 
 ## Overview
 
