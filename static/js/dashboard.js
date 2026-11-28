@@ -252,8 +252,17 @@ function wireSessionTimeout() {
         try { localStorage.setItem(storageKey, String(time)); } catch { /* private mode */ }
     };
 
-    const signOut = () => {
-        window.location.assign(`${dialog.dataset.signedOutUrl}&next=${encodeURIComponent(location.pathname)}`);
+    // End the session here rather than relying on the server's expiry, which can lag by a moment.
+    const signOut = async () => {
+        try {
+            await fetch(dialog.dataset.logoutUrl, {
+                method: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')},
+                credentials: 'same-origin',
+            });
+        } finally {
+            window.location.assign(`${dialog.dataset.signedOutUrl}&next=${encodeURIComponent(location.pathname)}`);
+        }
     };
 
     const update = () => {

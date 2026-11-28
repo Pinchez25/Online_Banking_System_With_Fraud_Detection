@@ -132,8 +132,8 @@ class Transaction(models.Model):
         return self.transaction_id
 
     @classmethod
-    def from_db(cls, db, field_names, values):
-        instance = super().from_db(db, field_names, values)
+    def from_db(cls, db, field_names, values, **kwargs):
+        instance = super().from_db(db, field_names, values, **kwargs)
         instance._persisted_status = instance.__dict__.get("status")  # None when the field was deferred
         return instance
 

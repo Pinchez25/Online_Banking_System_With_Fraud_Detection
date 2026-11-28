@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -235,12 +234,19 @@ USE_I18N = True
 
 USE_TZ = False
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = os.environ["EMAIL_HOST"]
-EMAIL_PORT = int(os.environ["EMAIL_PORT"])
-EMAIL_USE_TLS = os.environ["EMAIL_USE_TLS"].lower() == "true"
-EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
-EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": os.environ["EMAIL_HOST"],
+            "port": int(os.environ["EMAIL_PORT"]),
+            "use_tls": os.environ["EMAIL_USE_TLS"].lower() == "true",
+            "username": os.environ["EMAIL_HOST_USER"],
+            "password": os.environ["EMAIL_HOST_PASSWORD"],
+        },
+    },
+}
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 
 UNFOLD = {
     "SITE_TITLE": "Online_Banking_System.admin_ui.site_title",
@@ -340,20 +346,3 @@ LOGGING = {
         },
     },
 }
-
-# ---------------------------------------------------------------------------
-# Test-run overrides: keep the suite fast and hermetic (no SMTP/Redis needed).
-# PBKDF2's 1.5M iterations cost ~1s per create_user; MD5 is fine for fixtures.
-# ---------------------------------------------------------------------------
-TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
-
-if TESTING:
-    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
-    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
-    CELERY_TASK_ALWAYS_EAGER = True
-    CELERY_TASK_EAGER_PROPAGATES = True
-    EVENT_BUS = "inline"
-    TEST_RUNNER = "Online_Banking_System.test_runner.TestRunner"
-    ALLOW_SELF_APPROVAL = False  # tests must not depend on a developer's local toggle

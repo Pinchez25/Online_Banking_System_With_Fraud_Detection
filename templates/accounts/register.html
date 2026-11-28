@@ -39,6 +39,12 @@
             {% if form.national_id.errors %}<span class="field__error">{{ form.national_id.errors|join:" " }}</span>{% endif %}
         </label>
 
+        <label class="field" for="id_account_type">
+            <span>Account type</span>
+            {{ form.account_type }}
+            {% if form.account_type.errors %}<span class="field__error">{{ form.account_type.errors|join:" " }}</span>{% endif %}
+        </label>
+
         <label class="field" for="id_username">
             <span>Username</span>
             <input type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" autocomplete="username" required>

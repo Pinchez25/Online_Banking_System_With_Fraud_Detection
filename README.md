@@ -1,5 +1,4 @@
-A Django-based online banking system with user authentication, account management, money transfers, transaction
-workflows, real-time notifications, and fraud detection powered by a machine learning model.
+# A Django-based online banking system with user authentication, account management, money transfers, transaction workflows, real-time notifications, and fraud detection powered by a machine learning model
 
 ## Overview
 
@@ -70,20 +69,20 @@ event-driven fraud pipeline first, then waits for staff approval.
                      block        ─► REJECTED + account frozen + alert/email
 ```
 
-* **Transactional outbox** (`events/`): an event is published if and only if its business
+- **Transactional outbox** (`events/`): an event is published if and only if its business
   change committed. A Celery relay drains it with `SELECT … FOR UPDATE SKIP LOCKED`.
-* **At-least-once with idempotent consumers**: offsets commit after handling; scoring and decision
+- **At-least-once with idempotent consumers**: offsets commit after handling; scoring and decision
   application are no-ops on redelivery. Poison messages go to `<topic>.dlq` after retries.
-* **Behavioural profiles** (`fraud/profiles.py`): per-account Redis hashes, 24h sliding-window
+- **Behavioural profiles** (`fraud/profiles.py`): per-account Redis hashes, 24h sliding-window
   sorted sets and payee graphs. One pipelined round trip per score.
-* **Behavioural rules** (`fraud/rules.py`): velocity burst, amount spike (z-score against the
+- **Behavioural rules** (`fraud/rules.py`): velocity burst, amount spike (z-score against the
   account's own history), account drain, large first payment to a new payee, unusual hour,
   pass-through (mule cash-out) and recipient fan-in. Combined with the model by noisy-OR.
   Rules alone escalate to *manual review*; only the model's high-precision band auto-blocks.
-* **One feature contract** (`fraud/features.py`): training (vectorised over 6.3M PaySim rows) and
+- **One feature contract** (`fraud/features.py`): training (vectorised over 6.3M PaySim rows) and
   serving (one event against Redis) produce the same raw signals and share the same feature code.
   `fraud.tests.test_parity` asserts they agree exactly.
-* **Model registry** (`FraudModelVersion`): champion/challenger promotion on test PR-AUC, one active
+- **Model registry** (`FraudModelVersion`): champion/challenger promotion on test PR-AUC, one active
   model, hot-reloaded by scorers. Admin can roll back with one action.
 
 ```text
@@ -142,12 +141,22 @@ lowest score with at least 97% precision. Metrics are reported on an untouched, 
 
 ## Running Tests
 
-```bash
-uv run python manage.py test --noinput
-```
+Tests use pytest with factory_boy factories (`tests/factories.py`) and run against PostgreSQL only:
+cache, channels, email, fraud profiles, Celery and the event bus are in-memory or eager
+(`Online_Banking_System/test_settings.py`).
 
-Tests use in-memory cache/channels/email, fakeredis profiles, eager Celery and the inline bus,
-so no containers are required.
+| Layer | Directory | What it covers |
+| ------- | ----------- | ---------------- |
+| Unit | `tests/unit` | Pure logic: ledger, fraud rules and features, loan maths, status graph, documents |
+| Integration | `tests/integration` | Services, views, admin, WebSockets and the event pipeline against the database |
+| End-to-end | `tests/e2e` | Customer journeys in a real browser (Playwright) against a live server |
+
+```bash
+uv run pytest                      # everything, with a coverage report
+uv run pytest -m unit              # or -m integration / -m e2e
+uv run pytest -m "not e2e"         # skip the browser
+uv run playwright install chromium # once, before the first e2e run
+```
 
 ## Useful Commands
 
@@ -174,7 +183,7 @@ uv run python manage.py check
 Nothing about the bank's identity is hard-coded.
 
 | What | Where | Changeable at runtime |
-|------|-------|-----------------------|
+| ------ | ------- | ----------------------- |
 | Name, legal notice, support email and phone | Back office → **Bank profile** (seeded from `BANK_NAME`, `BANK_LEGAL_NOTICE`, `BANK_SUPPORT_EMAIL`, `BANK_SUPPORT_PHONE` on first use) | Yes |
 | Currency code | `BANK_CURRENCY` | No: amounts are stored without a currency |
 | Time zone | `TIME_ZONE` | No |
